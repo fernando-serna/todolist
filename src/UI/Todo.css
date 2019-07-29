@@ -1,0 +1,18 @@
+.todolist-wrapper {
+  display: grid;
+  grid-template-rows: 1fr 2fr;
+  /* grid-row-gap: 10px; */
+  grid-template-areas:
+    'todolist-input'
+    'todolist-output';
+}
+
+.todolist-input {
+  grid-area: todolist-input;
+  color: white;
+}
+
+.todolist-output {
+  grid-area: todolist-output;
+  overflow: auto;
+}

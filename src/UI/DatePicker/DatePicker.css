@@ -1,0 +1,20 @@
+.date-wrapper {
+  display: grid;
+  width: 50vw;
+  grid-gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: 'date-component time-component';
+  align-items: center;
+}
+
+.date-component {
+  grid-area: date-component;
+  background: #596273;
+  color: white;
+}
+
+.time-component {
+  grid-area: time-component;
+  background: #596273;
+  color: white;
+}

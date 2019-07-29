@@ -1,0 +1,26 @@
+.task-wrapper {
+  display: grid;
+  width: 50vw;
+  /* grid-template-columns: 1fr 150px; */
+  grid-template-areas:
+    'task-textfield'
+    'task-date'
+    'task-button';
+  align-items: center;
+}
+
+.task-textfield {
+  grid-area: task-textfield;
+  background: #596273;
+}
+
+.task-date {
+  grid-area: task-date;
+}
+
+.task-button {
+  grid-area: task-button;
+  height: 50px;
+  width: 150px;
+  justify-self: end;
+}

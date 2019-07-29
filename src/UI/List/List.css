@@ -1,0 +1,10 @@
+.list-wrapper {
+  display: flex;
+  height: 100%;
+  width: 50vw;
+  flex-direction: column;
+}
+
+.item {
+  background: white;
+}

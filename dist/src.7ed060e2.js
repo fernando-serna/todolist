@@ -25748,7 +25748,29 @@ if ("development" === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-},{"./cjs/react-dom.development.js":"../node_modules/react-dom/cjs/react-dom.development.js"}],"../node_modules/react-is/cjs/react-is.development.js":[function(require,module,exports) {
+},{"./cjs/react-dom.development.js":"../node_modules/react-dom/cjs/react-dom.development.js"}],"../node_modules/@material-ui/utils/esm/chainPropTypes.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function chainPropTypes(propType1, propType2) {
+  if ("development" === 'production') {
+    return function () {
+      return null;
+    };
+  }
+
+  return function validate() {
+    return propType1.apply(void 0, arguments) || propType2.apply(void 0, arguments);
+  };
+}
+
+var _default = chainPropTypes;
+exports.default = _default;
+},{}],"../node_modules/react-is/cjs/react-is.development.js":[function(require,module,exports) {
 /** @license React v16.8.6
  * react-is.development.js
  *
@@ -26660,1772 +26682,7 @@ if ("development" !== 'production') {
   // http://fb.me/prop-types-in-prod
   module.exports = require('./factoryWithThrowingShims')();
 }
-},{"react-is":"../node_modules/react-is/index.js","./factoryWithTypeCheckers":"../node_modules/prop-types/factoryWithTypeCheckers.js"}],"../node_modules/uuid/lib/rng-browser.js":[function(require,module,exports) {
-// Unique ID creation requires a high quality random # generator.  In the
-// browser this is a little complicated due to unknown quality of Math.random()
-// and inconsistent support for the `crypto` API.  We do the best we can via
-// feature-detection
-
-// getRandomValues needs to be invoked in a context where "this" is a Crypto
-// implementation. Also, find the complete implementation of crypto on IE11.
-var getRandomValues = (typeof(crypto) != 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto)) ||
-                      (typeof(msCrypto) != 'undefined' && typeof window.msCrypto.getRandomValues == 'function' && msCrypto.getRandomValues.bind(msCrypto));
-
-if (getRandomValues) {
-  // WHATWG crypto RNG - http://wiki.whatwg.org/wiki/Crypto
-  var rnds8 = new Uint8Array(16); // eslint-disable-line no-undef
-
-  module.exports = function whatwgRNG() {
-    getRandomValues(rnds8);
-    return rnds8;
-  };
-} else {
-  // Math.random()-based (RNG)
-  //
-  // If all else fails, use Math.random().  It's fast, but is of unspecified
-  // quality.
-  var rnds = new Array(16);
-
-  module.exports = function mathRNG() {
-    for (var i = 0, r; i < 16; i++) {
-      if ((i & 0x03) === 0) r = Math.random() * 0x100000000;
-      rnds[i] = r >>> ((i & 0x03) << 3) & 0xff;
-    }
-
-    return rnds;
-  };
-}
-
-},{}],"../node_modules/uuid/lib/bytesToUuid.js":[function(require,module,exports) {
-/**
- * Convert array of 16 byte values to UUID string format of the form:
- * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
- */
-var byteToHex = [];
-for (var i = 0; i < 256; ++i) {
-  byteToHex[i] = (i + 0x100).toString(16).substr(1);
-}
-
-function bytesToUuid(buf, offset) {
-  var i = offset || 0;
-  var bth = byteToHex;
-  // join used to fix memory issue caused by concatenation: https://bugs.chromium.org/p/v8/issues/detail?id=3175#c4
-  return ([bth[buf[i++]], bth[buf[i++]], 
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]],
-	bth[buf[i++]], bth[buf[i++]],
-	bth[buf[i++]], bth[buf[i++]]]).join('');
-}
-
-module.exports = bytesToUuid;
-
-},{}],"../node_modules/uuid/v1.js":[function(require,module,exports) {
-var rng = require('./lib/rng');
-var bytesToUuid = require('./lib/bytesToUuid');
-
-// **`v1()` - Generate time-based UUID**
-//
-// Inspired by https://github.com/LiosK/UUID.js
-// and http://docs.python.org/library/uuid.html
-
-var _nodeId;
-var _clockseq;
-
-// Previous uuid creation time
-var _lastMSecs = 0;
-var _lastNSecs = 0;
-
-// See https://github.com/broofa/node-uuid for API details
-function v1(options, buf, offset) {
-  var i = buf && offset || 0;
-  var b = buf || [];
-
-  options = options || {};
-  var node = options.node || _nodeId;
-  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq;
-
-  // node and clockseq need to be initialized to random values if they're not
-  // specified.  We do this lazily to minimize issues related to insufficient
-  // system entropy.  See #189
-  if (node == null || clockseq == null) {
-    var seedBytes = rng();
-    if (node == null) {
-      // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
-      node = _nodeId = [
-        seedBytes[0] | 0x01,
-        seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]
-      ];
-    }
-    if (clockseq == null) {
-      // Per 4.2.2, randomize (14 bit) clockseq
-      clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
-    }
-  }
-
-  // UUID timestamps are 100 nano-second units since the Gregorian epoch,
-  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
-  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
-  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
-  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime();
-
-  // Per 4.2.1.2, use count of uuid's generated during the current clock
-  // cycle to simulate higher resolution clock
-  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1;
-
-  // Time since last uuid creation (in msecs)
-  var dt = (msecs - _lastMSecs) + (nsecs - _lastNSecs)/10000;
-
-  // Per 4.2.1.2, Bump clockseq on clock regression
-  if (dt < 0 && options.clockseq === undefined) {
-    clockseq = clockseq + 1 & 0x3fff;
-  }
-
-  // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
-  // time interval
-  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
-    nsecs = 0;
-  }
-
-  // Per 4.2.1.2 Throw error if too many uuids are requested
-  if (nsecs >= 10000) {
-    throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
-  }
-
-  _lastMSecs = msecs;
-  _lastNSecs = nsecs;
-  _clockseq = clockseq;
-
-  // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
-  msecs += 12219292800000;
-
-  // `time_low`
-  var tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
-  b[i++] = tl >>> 24 & 0xff;
-  b[i++] = tl >>> 16 & 0xff;
-  b[i++] = tl >>> 8 & 0xff;
-  b[i++] = tl & 0xff;
-
-  // `time_mid`
-  var tmh = (msecs / 0x100000000 * 10000) & 0xfffffff;
-  b[i++] = tmh >>> 8 & 0xff;
-  b[i++] = tmh & 0xff;
-
-  // `time_high_and_version`
-  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
-  b[i++] = tmh >>> 16 & 0xff;
-
-  // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
-  b[i++] = clockseq >>> 8 | 0x80;
-
-  // `clock_seq_low`
-  b[i++] = clockseq & 0xff;
-
-  // `node`
-  for (var n = 0; n < 6; ++n) {
-    b[i + n] = node[n];
-  }
-
-  return buf ? buf : bytesToUuid(b);
-}
-
-module.exports = v1;
-
-},{"./lib/rng":"../node_modules/uuid/lib/rng-browser.js","./lib/bytesToUuid":"../node_modules/uuid/lib/bytesToUuid.js"}],"../node_modules/uuid/v4.js":[function(require,module,exports) {
-var rng = require('./lib/rng');
-var bytesToUuid = require('./lib/bytesToUuid');
-
-function v4(options, buf, offset) {
-  var i = buf && offset || 0;
-
-  if (typeof(options) == 'string') {
-    buf = options === 'binary' ? new Array(16) : null;
-    options = null;
-  }
-  options = options || {};
-
-  var rnds = options.random || (options.rng || rng)();
-
-  // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-  rnds[6] = (rnds[6] & 0x0f) | 0x40;
-  rnds[8] = (rnds[8] & 0x3f) | 0x80;
-
-  // Copy bytes to buffer, if provided
-  if (buf) {
-    for (var ii = 0; ii < 16; ++ii) {
-      buf[i + ii] = rnds[ii];
-    }
-  }
-
-  return buf || bytesToUuid(rnds);
-}
-
-module.exports = v4;
-
-},{"./lib/rng":"../node_modules/uuid/lib/rng-browser.js","./lib/bytesToUuid":"../node_modules/uuid/lib/bytesToUuid.js"}],"../node_modules/uuid/index.js":[function(require,module,exports) {
-var v1 = require('./v1');
-var v4 = require('./v4');
-
-var uuid = v4;
-uuid.v1 = v1;
-uuid.v4 = v4;
-
-module.exports = uuid;
-
-},{"./v1":"../node_modules/uuid/v1.js","./v4":"../node_modules/uuid/v4.js"}],"../node_modules/warning/warning.js":[function(require,module,exports) {
-/**
- * Copyright (c) 2014-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-'use strict';
-/**
- * Similar to invariant but only logs a warning if the condition is not met.
- * This can be used to log issues in development environments in critical
- * paths. Removing the logging code for production environments will keep the
- * same logic and follow the same code paths.
- */
-
-var __DEV__ = "development" !== 'production';
-
-var warning = function () {};
-
-if (__DEV__) {
-  var printWarning = function printWarning(format, args) {
-    var len = arguments.length;
-    args = new Array(len > 1 ? len - 1 : 0);
-
-    for (var key = 1; key < len; key++) {
-      args[key - 1] = arguments[key];
-    }
-
-    var argIndex = 0;
-    var message = 'Warning: ' + format.replace(/%s/g, function () {
-      return args[argIndex++];
-    });
-
-    if (typeof console !== 'undefined') {
-      console.error(message);
-    }
-
-    try {
-      // --- Welcome to debugging React ---
-      // This error was thrown as a convenience so that you can use this stack
-      // to find the callsite that caused this warning to fire.
-      throw new Error(message);
-    } catch (x) {}
-  };
-
-  warning = function (condition, format, args) {
-    var len = arguments.length;
-    args = new Array(len > 2 ? len - 2 : 0);
-
-    for (var key = 2; key < len; key++) {
-      args[key - 2] = arguments[key];
-    }
-
-    if (format === undefined) {
-      throw new Error('`warning(condition, format, ...args)` requires a warning ' + 'message argument');
-    }
-
-    if (!condition) {
-      printWarning.apply(null, [format].concat(args));
-    }
-  };
-}
-
-module.exports = warning;
-},{}],"../node_modules/@material-ui/core/esm/styles/colorManipulator.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.hexToRgb = hexToRgb;
-exports.rgbToHex = rgbToHex;
-exports.hslToRgb = hslToRgb;
-exports.decomposeColor = decomposeColor;
-exports.recomposeColor = recomposeColor;
-exports.getContrastRatio = getContrastRatio;
-exports.getLuminance = getLuminance;
-exports.emphasize = emphasize;
-exports.fade = fade;
-exports.darken = darken;
-exports.lighten = lighten;
-
-var _warning = _interopRequireDefault(require("warning"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/* eslint-disable no-use-before-define */
-
-/**
- * Returns a number whose value is limited to the given range.
- *
- * @param {number} value The value to be clamped
- * @param {number} min The lower boundary of the output range
- * @param {number} max The upper boundary of the output range
- * @returns {number} A number in the range [min, max]
- */
-function clamp(value) {
-  var min = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-  var max = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
-  "development" !== "production" ? (0, _warning.default)(value >= min && value <= max, "Material-UI: the value provided ".concat(value, " is out of range [").concat(min, ", ").concat(max, "].")) : void 0;
-
-  if (value < min) {
-    return min;
-  }
-
-  if (value > max) {
-    return max;
-  }
-
-  return value;
-}
-/**
- * Converts a color from CSS hex format to CSS rgb format.
- *
- * @param {string} color - Hex color, i.e. #nnn or #nnnnnn
- * @returns {string} A CSS rgb color string
- */
-
-
-function hexToRgb(color) {
-  color = color.substr(1);
-  var re = new RegExp(".{1,".concat(color.length / 3, "}"), 'g');
-  var colors = color.match(re);
-
-  if (colors && colors[0].length === 1) {
-    colors = colors.map(function (n) {
-      return n + n;
-    });
-  }
-
-  return colors ? "rgb(".concat(colors.map(function (n) {
-    return parseInt(n, 16);
-  }).join(', '), ")") : '';
-}
-
-function intToHex(int) {
-  var hex = int.toString(16);
-  return hex.length === 1 ? "0".concat(hex) : hex;
-}
-/**
- * Converts a color from CSS rgb format to CSS hex format.
- *
- * @param {string} color - RGB color, i.e. rgb(n, n, n)
- * @returns {string} A CSS rgb color string, i.e. #nnnnnn
- */
-
-
-function rgbToHex(color) {
-  // Idempotent
-  if (color.indexOf('#') === 0) {
-    return color;
-  }
-
-  var _decomposeColor = decomposeColor(color),
-      values = _decomposeColor.values;
-
-  return "#".concat(values.map(function (n) {
-    return intToHex(n);
-  }).join(''));
-}
-/**
- * Converts a color from hsl format to rgb format.
- *
- * @param {string} color - HSL color values
- * @returns {string} rgb color values
- */
-
-
-function hslToRgb(color) {
-  color = decomposeColor(color);
-  var _color = color,
-      values = _color.values;
-  var h = values[0];
-  var s = values[1] / 100;
-  var l = values[2] / 100;
-  var a = s * Math.min(l, 1 - l);
-
-  var f = function f(n) {
-    var k = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : (n + h / 30) % 12;
-    return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-  };
-
-  var type = 'rgb';
-  var rgb = [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
-
-  if (color.type === 'hsla') {
-    type += 'a';
-    rgb.push(values[3]);
-  }
-
-  return recomposeColor({
-    type: type,
-    values: rgb
-  });
-}
-/**
- * Returns an object with the type and values of a color.
- *
- * Note: Does not support rgb % values.
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @returns {object} - A MUI color object: {type: string, values: number[]}
- */
-
-
-function decomposeColor(color) {
-  // Idempotent
-  if (color.type) {
-    return color;
-  }
-
-  if (color.charAt(0) === '#') {
-    return decomposeColor(hexToRgb(color));
-  }
-
-  var marker = color.indexOf('(');
-  var type = color.substring(0, marker);
-
-  if (['rgb', 'rgba', 'hsl', 'hsla'].indexOf(type) === -1) {
-    throw new Error(["Material-UI: unsupported `".concat(color, "` color."), 'We support the following formats: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla().'].join('\n'));
-  }
-
-  var values = color.substring(marker + 1, color.length - 1).split(',');
-  values = values.map(function (value) {
-    return parseFloat(value);
-  });
-  return {
-    type: type,
-    values: values
-  };
-}
-/**
- * Converts a color object with type and values to a string.
- *
- * @param {object} color - Decomposed color
- * @param {string} color.type - One of: 'rgb', 'rgba', 'hsl', 'hsla'
- * @param {array} color.values - [n,n,n] or [n,n,n,n]
- * @returns {string} A CSS color string
- */
-
-
-function recomposeColor(color) {
-  var type = color.type;
-  var values = color.values;
-
-  if (type.indexOf('rgb') !== -1) {
-    // Only convert the first 3 values to int (i.e. not alpha)
-    values = values.map(function (n, i) {
-      return i < 3 ? parseInt(n, 10) : n;
-    });
-  } else if (type.indexOf('hsl') !== -1) {
-    values[1] = "".concat(values[1], "%");
-    values[2] = "".concat(values[2], "%");
-  }
-
-  return "".concat(type, "(").concat(values.join(', '), ")");
-}
-/**
- * Calculates the contrast ratio between two colors.
- *
- * Formula: https://www.w3.org/TR/WCAG20-TECHS/G17.html#G17-tests
- *
- * @param {string} foreground - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @param {string} background - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @returns {number} A contrast ratio value in the range 0 - 21.
- */
-
-
-function getContrastRatio(foreground, background) {
-  var lumA = getLuminance(foreground);
-  var lumB = getLuminance(background);
-  return (Math.max(lumA, lumB) + 0.05) / (Math.min(lumA, lumB) + 0.05);
-}
-/**
- * The relative brightness of any point in a color space,
- * normalized to 0 for darkest black and 1 for lightest white.
- *
- * Formula: https://www.w3.org/TR/WCAG20-TECHS/G17.html#G17-tests
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @returns {number} The relative brightness of the color in the range 0 - 1
- */
-
-
-function getLuminance(color) {
-  color = decomposeColor(color);
-  var rgb = color.type === 'hsl' ? decomposeColor(hslToRgb(color)).values : color.values;
-  rgb = rgb.map(function (val) {
-    val /= 255; // normalized
-
-    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
-  }); // Truncate at 3 digits
-
-  return Number((0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]).toFixed(3));
-}
-/**
- * Darken or lighten a color, depending on its luminance.
- * Light colors are darkened, dark colors are lightened.
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @param {number} coefficient=0.15 - multiplier in the range 0 - 1
- * @returns {string} A CSS color string. Hex input values are returned as rgb
- */
-
-
-function emphasize(color) {
-  var coefficient = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0.15;
-  return getLuminance(color) > 0.5 ? darken(color, coefficient) : lighten(color, coefficient);
-}
-/**
- * Set the absolute transparency of a color.
- * Any existing alpha values are overwritten.
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @param {number} value - value to set the alpha channel to in the range 0 -1
- * @returns {string} A CSS color string. Hex input values are returned as rgb
- */
-
-
-function fade(color, value) {
-  color = decomposeColor(color);
-  value = clamp(value);
-
-  if (color.type === 'rgb' || color.type === 'hsl') {
-    color.type += 'a';
-  }
-
-  color.values[3] = value;
-  return recomposeColor(color);
-}
-/**
- * Darkens a color.
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @param {number} coefficient - multiplier in the range 0 - 1
- * @returns {string} A CSS color string. Hex input values are returned as rgb
- */
-
-
-function darken(color, coefficient) {
-  color = decomposeColor(color);
-  coefficient = clamp(coefficient);
-
-  if (color.type.indexOf('hsl') !== -1) {
-    color.values[2] *= 1 - coefficient;
-  } else if (color.type.indexOf('rgb') !== -1) {
-    for (var i = 0; i < 3; i += 1) {
-      color.values[i] *= 1 - coefficient;
-    }
-  }
-
-  return recomposeColor(color);
-}
-/**
- * Lightens a color.
- *
- * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
- * @param {number} coefficient - multiplier in the range 0 - 1
- * @returns {string} A CSS color string. Hex input values are returned as rgb
- */
-
-
-function lighten(color, coefficient) {
-  color = decomposeColor(color);
-  coefficient = clamp(coefficient);
-
-  if (color.type.indexOf('hsl') !== -1) {
-    color.values[2] += (100 - color.values[2]) * coefficient;
-  } else if (color.type.indexOf('rgb') !== -1) {
-    for (var i = 0; i < 3; i += 1) {
-      color.values[i] += (255 - color.values[i]) * coefficient;
-    }
-  }
-
-  return recomposeColor(color);
-}
-},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/@babel/runtime/helpers/esm/defineProperty.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = _defineProperty;
-
-function _defineProperty(obj, key, value) {
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-
-  return obj;
-}
-},{}],"../node_modules/@babel/runtime/helpers/esm/extends.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = _extends;
-
-function _extends() {
-  exports.default = _extends = Object.assign || function (target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i];
-
-      for (var key in source) {
-        if (Object.prototype.hasOwnProperty.call(source, key)) {
-          target[key] = source[key];
-        }
-      }
-    }
-
-    return target;
-  };
-
-  return _extends.apply(this, arguments);
-}
-},{}],"../node_modules/@babel/runtime/helpers/esm/objectWithoutPropertiesLoose.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = _objectWithoutPropertiesLoose;
-
-function _objectWithoutPropertiesLoose(source, excluded) {
-  if (source == null) return {};
-  var target = {};
-  var sourceKeys = Object.keys(source);
-  var key, i;
-
-  for (i = 0; i < sourceKeys.length; i++) {
-    key = sourceKeys[i];
-    if (excluded.indexOf(key) >= 0) continue;
-    target[key] = source[key];
-  }
-
-  return target;
-}
-},{}],"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = _objectWithoutProperties;
-
-var _objectWithoutPropertiesLoose = _interopRequireDefault(require("./objectWithoutPropertiesLoose"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _objectWithoutProperties(source, excluded) {
-  if (source == null) return {};
-  var target = (0, _objectWithoutPropertiesLoose.default)(source, excluded);
-  var key, i;
-
-  if (Object.getOwnPropertySymbols) {
-    var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
-
-    for (i = 0; i < sourceSymbolKeys.length; i++) {
-      key = sourceSymbolKeys[i];
-      if (excluded.indexOf(key) >= 0) continue;
-      if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
-      target[key] = source[key];
-    }
-  }
-
-  return target;
-}
-},{"./objectWithoutPropertiesLoose":"../node_modules/@babel/runtime/helpers/esm/objectWithoutPropertiesLoose.js"}],"../node_modules/deepmerge/dist/cjs.js":[function(require,module,exports) {
-'use strict';
-
-var isMergeableObject = function isMergeableObject(value) {
-  return isNonNullObject(value) && !isSpecial(value);
-};
-
-function isNonNullObject(value) {
-  return !!value && typeof value === 'object';
-}
-
-function isSpecial(value) {
-  var stringValue = Object.prototype.toString.call(value);
-  return stringValue === '[object RegExp]' || stringValue === '[object Date]' || isReactElement(value);
-} // see https://github.com/facebook/react/blob/b5ac963fb791d1298e7f396236383bc955f916c1/src/isomorphic/classic/element/ReactElement.js#L21-L25
-
-
-var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
-var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
-
-function isReactElement(value) {
-  return value.$$typeof === REACT_ELEMENT_TYPE;
-}
-
-function emptyTarget(val) {
-  return Array.isArray(val) ? [] : {};
-}
-
-function cloneUnlessOtherwiseSpecified(value, options) {
-  return options.clone !== false && options.isMergeableObject(value) ? deepmerge(emptyTarget(value), value, options) : value;
-}
-
-function defaultArrayMerge(target, source, options) {
-  return target.concat(source).map(function (element) {
-    return cloneUnlessOtherwiseSpecified(element, options);
-  });
-}
-
-function getMergeFunction(key, options) {
-  if (!options.customMerge) {
-    return deepmerge;
-  }
-
-  var customMerge = options.customMerge(key);
-  return typeof customMerge === 'function' ? customMerge : deepmerge;
-}
-
-function getEnumerableOwnPropertySymbols(target) {
-  return Object.getOwnPropertySymbols ? Object.getOwnPropertySymbols(target).filter(function (symbol) {
-    return target.propertyIsEnumerable(symbol);
-  }) : [];
-}
-
-function getKeys(target) {
-  return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target));
-}
-
-function mergeObject(target, source, options) {
-  var destination = {};
-
-  if (options.isMergeableObject(target)) {
-    getKeys(target).forEach(function (key) {
-      destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
-    });
-  }
-
-  getKeys(source).forEach(function (key) {
-    if (!options.isMergeableObject(source[key]) || !target[key]) {
-      destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
-    } else {
-      destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
-    }
-  });
-  return destination;
-}
-
-function deepmerge(target, source, options) {
-  options = options || {};
-  options.arrayMerge = options.arrayMerge || defaultArrayMerge;
-  options.isMergeableObject = options.isMergeableObject || isMergeableObject;
-  var sourceIsArray = Array.isArray(source);
-  var targetIsArray = Array.isArray(target);
-  var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
-
-  if (!sourceAndTargetTypesMatch) {
-    return cloneUnlessOtherwiseSpecified(source, options);
-  } else if (sourceIsArray) {
-    return options.arrayMerge(target, source, options);
-  } else {
-    return mergeObject(target, source, options);
-  }
-}
-
-deepmerge.all = function deepmergeAll(array, options) {
-  if (!Array.isArray(array)) {
-    throw new Error('first argument should be an array');
-  }
-
-  return array.reduce(function (prev, next) {
-    return deepmerge(prev, next, options);
-  }, {});
-};
-
-var deepmerge_1 = deepmerge;
-module.exports = deepmerge_1;
-},{}],"../node_modules/@material-ui/core/node_modules/isobject/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isObject;
-
-/*!
- * isobject <https://github.com/jonschlinkert/isobject>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-function isObject(val) {
-  return val != null && typeof val === 'object' && Array.isArray(val) === false;
-}
-
-;
-},{}],"../node_modules/@material-ui/core/node_modules/is-plain-object/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isPlainObject;
-
-var _isobject = _interopRequireDefault(require("isobject"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/*!
- * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-function isObjectObject(o) {
-  return (0, _isobject.default)(o) === true && Object.prototype.toString.call(o) === '[object Object]';
-}
-
-function isPlainObject(o) {
-  var ctor, prot;
-  if (isObjectObject(o) === false) return false; // If has modified constructor
-
-  ctor = o.constructor;
-  if (typeof ctor !== 'function') return false; // If has modified prototype
-
-  prot = ctor.prototype;
-  if (isObjectObject(prot) === false) return false; // If constructor does not have an Object-specific method
-
-  if (prot.hasOwnProperty('isPrototypeOf') === false) {
-    return false;
-  } // Most likely a plain Object
-
-
-  return true;
-}
-
-;
-},{"isobject":"../node_modules/@material-ui/core/node_modules/isobject/index.js"}],"../node_modules/@material-ui/core/esm/styles/createBreakpoints.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = createBreakpoints;
-exports.keys = void 0;
-
-var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
-
-var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// Sorted ASC by size. That's important.
-// It can't be configured as it's used statically for propTypes.
-var keys = ['xs', 'sm', 'md', 'lg', 'xl']; // Keep in mind that @media is inclusive by the CSS specification.
-
-exports.keys = keys;
-
-function createBreakpoints(breakpoints) {
-  var _breakpoints$values = breakpoints.values,
-      values = _breakpoints$values === void 0 ? {
-    xs: 0,
-    sm: 600,
-    md: 960,
-    lg: 1280,
-    xl: 1920
-  } : _breakpoints$values,
-      _breakpoints$unit = breakpoints.unit,
-      unit = _breakpoints$unit === void 0 ? 'px' : _breakpoints$unit,
-      _breakpoints$step = breakpoints.step,
-      step = _breakpoints$step === void 0 ? 5 : _breakpoints$step,
-      other = (0, _objectWithoutProperties2.default)(breakpoints, ["values", "unit", "step"]);
-
-  function up(key) {
-    var value = typeof values[key] === 'number' ? values[key] : key;
-    return "@media (min-width:".concat(value).concat(unit, ")");
-  }
-
-  function down(key) {
-    var endIndex = keys.indexOf(key) + 1;
-    var upperbound = values[keys[endIndex]];
-
-    if (endIndex === keys.length) {
-      // xl down applies to all sizes
-      return up('xs');
-    }
-
-    var value = typeof upperbound === 'number' && endIndex > 0 ? upperbound : key;
-    return "@media (max-width:".concat(value - step / 100).concat(unit, ")");
-  }
-
-  function between(start, end) {
-    var endIndex = keys.indexOf(end) + 1;
-
-    if (endIndex === keys.length) {
-      return up(start);
-    }
-
-    return "@media (min-width:".concat(values[start]).concat(unit, ") and ") + "(max-width:".concat(values[keys[endIndex]] - step / 100).concat(unit, ")");
-  }
-
-  function only(key) {
-    return between(key, key);
-  }
-
-  function width(key) {
-    return values[key];
-  }
-
-  return (0, _extends2.default)({
-    keys: keys,
-    values: values,
-    up: up,
-    down: down,
-    between: between,
-    only: only,
-    width: width
-  }, other);
-}
-},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js"}],"../node_modules/@material-ui/core/esm/styles/createMixins.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = createMixins;
-
-var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/defineProperty"));
-
-var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// import warning from 'warning';
-function createMixins(breakpoints, spacing, mixins) {
-  var _toolbar;
-
-  return (0, _extends2.default)({
-    gutters: function gutters() {
-      var styles = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {}; // To deprecate in v4.1
-      //       warning(
-      //         false,
-      //         [
-      //           'Material-UI: theme.mixins.gutters() is deprecated.',
-      //           'You can use the source of the mixin directly:',
-      //           `
-      // paddingLeft: theme.spacing(2),
-      // paddingRight: theme.spacing(2),
-      // [theme.breakpoints.up('sm')]: {
-      //   paddingLeft: theme.spacing(3),
-      //   paddingRight: theme.spacing(3),
-      // },
-      // `,
-      //         ].join('\n'),
-      //       );
-
-      return (0, _extends2.default)({
-        paddingLeft: spacing(2),
-        paddingRight: spacing(2)
-      }, styles, (0, _defineProperty2.default)({}, breakpoints.up('sm'), (0, _extends2.default)({
-        paddingLeft: spacing(3),
-        paddingRight: spacing(3)
-      }, styles[breakpoints.up('sm')])));
-    },
-    toolbar: (_toolbar = {
-      minHeight: 56
-    }, (0, _defineProperty2.default)(_toolbar, "".concat(breakpoints.up('xs'), " and (orientation: landscape)"), {
-      minHeight: 48
-    }), (0, _defineProperty2.default)(_toolbar, breakpoints.up('sm'), {
-      minHeight: 64
-    }), _toolbar)
-  }, mixins);
-}
-},{"@babel/runtime/helpers/esm/defineProperty":"../node_modules/@babel/runtime/helpers/esm/defineProperty.js","@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js"}],"../node_modules/@material-ui/core/esm/colors/indigo.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var indigo = {
-  50: '#e8eaf6',
-  100: '#c5cae9',
-  200: '#9fa8da',
-  300: '#7986cb',
-  400: '#5c6bc0',
-  500: '#3f51b5',
-  600: '#3949ab',
-  700: '#303f9f',
-  800: '#283593',
-  900: '#1a237e',
-  A100: '#8c9eff',
-  A200: '#536dfe',
-  A400: '#3d5afe',
-  A700: '#304ffe'
-};
-var _default = indigo;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/colors/pink.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var pink = {
-  50: '#fce4ec',
-  100: '#f8bbd0',
-  200: '#f48fb1',
-  300: '#f06292',
-  400: '#ec407a',
-  500: '#e91e63',
-  600: '#d81b60',
-  700: '#c2185b',
-  800: '#ad1457',
-  900: '#880e4f',
-  A100: '#ff80ab',
-  A200: '#ff4081',
-  A400: '#f50057',
-  A700: '#c51162'
-};
-var _default = pink;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/colors/grey.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var grey = {
-  50: '#fafafa',
-  100: '#f5f5f5',
-  200: '#eeeeee',
-  300: '#e0e0e0',
-  400: '#bdbdbd',
-  500: '#9e9e9e',
-  600: '#757575',
-  700: '#616161',
-  800: '#424242',
-  900: '#212121',
-  A100: '#d5d5d5',
-  A200: '#aaaaaa',
-  A400: '#303030',
-  A700: '#616161'
-};
-var _default = grey;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/colors/red.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var red = {
-  50: '#ffebee',
-  100: '#ffcdd2',
-  200: '#ef9a9a',
-  300: '#e57373',
-  400: '#ef5350',
-  500: '#f44336',
-  600: '#e53935',
-  700: '#d32f2f',
-  800: '#c62828',
-  900: '#b71c1c',
-  A100: '#ff8a80',
-  A200: '#ff5252',
-  A400: '#ff1744',
-  A700: '#d50000'
-};
-var _default = red;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/colors/common.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var common = {
-  black: '#000',
-  white: '#fff'
-};
-var _default = common;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/styles/createPalette.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = createPalette;
-exports.dark = exports.light = void 0;
-
-var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
-
-var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
-
-var _warning = _interopRequireDefault(require("warning"));
-
-var _deepmerge = _interopRequireDefault(require("deepmerge"));
-
-var _indigo = _interopRequireDefault(require("../colors/indigo"));
-
-var _pink = _interopRequireDefault(require("../colors/pink"));
-
-var _grey = _interopRequireDefault(require("../colors/grey"));
-
-var _red = _interopRequireDefault(require("../colors/red"));
-
-var _common = _interopRequireDefault(require("../colors/common"));
-
-var _colorManipulator = require("./colorManipulator");
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// < 1kb payload overhead when lodash/merge is > 3kb.
-var light = {
-  // The colors used to style the text.
-  text: {
-    // The most important text.
-    primary: 'rgba(0, 0, 0, 0.87)',
-    // Secondary text.
-    secondary: 'rgba(0, 0, 0, 0.54)',
-    // Disabled text have even lower visual prominence.
-    disabled: 'rgba(0, 0, 0, 0.38)',
-    // Text hints.
-    hint: 'rgba(0, 0, 0, 0.38)'
-  },
-  // The color used to divide different elements.
-  divider: 'rgba(0, 0, 0, 0.12)',
-  // The background colors used to style the surfaces.
-  // Consistency between these values is important.
-  background: {
-    paper: _common.default.white,
-    default: _grey.default[50]
-  },
-  // The colors used to style the action elements.
-  action: {
-    // The color of an active action like an icon button.
-    active: 'rgba(0, 0, 0, 0.54)',
-    // The color of an hovered action.
-    hover: 'rgba(0, 0, 0, 0.08)',
-    hoverOpacity: 0.08,
-    // The color of a selected action.
-    selected: 'rgba(0, 0, 0, 0.14)',
-    // The color of a disabled action.
-    disabled: 'rgba(0, 0, 0, 0.26)',
-    // The background color of a disabled action.
-    disabledBackground: 'rgba(0, 0, 0, 0.12)'
-  }
-};
-exports.light = light;
-var dark = {
-  text: {
-    primary: _common.default.white,
-    secondary: 'rgba(255, 255, 255, 0.7)',
-    disabled: 'rgba(255, 255, 255, 0.5)',
-    hint: 'rgba(255, 255, 255, 0.5)',
-    icon: 'rgba(255, 255, 255, 0.5)'
-  },
-  divider: 'rgba(255, 255, 255, 0.12)',
-  background: {
-    paper: _grey.default[800],
-    default: '#303030'
-  },
-  action: {
-    active: _common.default.white,
-    hover: 'rgba(255, 255, 255, 0.1)',
-    hoverOpacity: 0.1,
-    selected: 'rgba(255, 255, 255, 0.2)',
-    disabled: 'rgba(255, 255, 255, 0.3)',
-    disabledBackground: 'rgba(255, 255, 255, 0.12)'
-  }
-};
-exports.dark = dark;
-
-function addLightOrDark(intent, direction, shade, tonalOffset) {
-  if (!intent[direction]) {
-    if (intent.hasOwnProperty(shade)) {
-      intent[direction] = intent[shade];
-    } else if (direction === 'light') {
-      intent.light = (0, _colorManipulator.lighten)(intent.main, tonalOffset);
-    } else if (direction === 'dark') {
-      intent.dark = (0, _colorManipulator.darken)(intent.main, tonalOffset * 1.5);
-    }
-  }
-}
-
-function createPalette(palette) {
-  var _palette$primary = palette.primary,
-      primary = _palette$primary === void 0 ? {
-    light: _indigo.default[300],
-    main: _indigo.default[500],
-    dark: _indigo.default[700]
-  } : _palette$primary,
-      _palette$secondary = palette.secondary,
-      secondary = _palette$secondary === void 0 ? {
-    light: _pink.default.A200,
-    main: _pink.default.A400,
-    dark: _pink.default.A700
-  } : _palette$secondary,
-      _palette$error = palette.error,
-      error = _palette$error === void 0 ? {
-    light: _red.default[300],
-    main: _red.default[500],
-    dark: _red.default[700]
-  } : _palette$error,
-      _palette$type = palette.type,
-      type = _palette$type === void 0 ? 'light' : _palette$type,
-      _palette$contrastThre = palette.contrastThreshold,
-      contrastThreshold = _palette$contrastThre === void 0 ? 3 : _palette$contrastThre,
-      _palette$tonalOffset = palette.tonalOffset,
-      tonalOffset = _palette$tonalOffset === void 0 ? 0.2 : _palette$tonalOffset,
-      other = (0, _objectWithoutProperties2.default)(palette, ["primary", "secondary", "error", "type", "contrastThreshold", "tonalOffset"]); // Use the same logic as
-  // Bootstrap: https://github.com/twbs/bootstrap/blob/1d6e3710dd447de1a200f29e8fa521f8a0908f70/scss/_functions.scss#L59
-  // and material-components-web https://github.com/material-components/material-components-web/blob/ac46b8863c4dab9fc22c4c662dc6bd1b65dd652f/packages/mdc-theme/_functions.scss#L54
-
-  function getContrastText(background) {
-    "development" !== "production" ? (0, _warning.default)(background, "Material-UI: missing background argument in getContrastText(".concat(background, ").")) : void 0;
-    var contrastText = (0, _colorManipulator.getContrastRatio)(background, dark.text.primary) >= contrastThreshold ? dark.text.primary : light.text.primary;
-
-    if ("development" !== 'production') {
-      var contrast = (0, _colorManipulator.getContrastRatio)(background, contrastText);
-      "development" !== "production" ? (0, _warning.default)(contrast >= 3, ["Material-UI: the contrast ratio of ".concat(contrast, ":1 for ").concat(contrastText, " on ").concat(background), 'falls below the WACG recommended absolute minimum contrast ratio of 3:1.', 'https://www.w3.org/TR/2008/REC-WCAG20-20081211/#visual-audio-contrast-contrast'].join('\n')) : void 0;
-    }
-
-    return contrastText;
-  }
-
-  function augmentColor(color) {
-    var mainShade = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 500;
-    var lightShade = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 300;
-    var darkShade = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 700;
-    color = (0, _extends2.default)({}, color);
-
-    if (!color.main && color[mainShade]) {
-      color.main = color[mainShade];
-    }
-
-    if ("development" !== 'production' && !color.main) {
-      throw new Error(['Material-UI: the color provided to augmentColor(color) is invalid.', "The color object needs to have a `main` property or a `".concat(mainShade, "` property.")].join('\n'));
-    }
-
-    addLightOrDark(color, 'light', lightShade, tonalOffset);
-    addLightOrDark(color, 'dark', darkShade, tonalOffset);
-
-    if (!color.contrastText) {
-      color.contrastText = getContrastText(color.main);
-    }
-
-    return color;
-  }
-
-  var types = {
-    dark: dark,
-    light: light
-  };
-  "development" !== "production" ? (0, _warning.default)(types[type], "Material-UI: the palette type `".concat(type, "` is not supported.")) : void 0;
-  var paletteOutput = (0, _deepmerge.default)((0, _extends2.default)({
-    // A collection of common colors.
-    common: _common.default,
-    // The palette type, can be light or dark.
-    type: type,
-    // The colors used to represent primary interface elements for a user.
-    primary: augmentColor(primary),
-    // The colors used to represent secondary interface elements for a user.
-    secondary: augmentColor(secondary, 'A400', 'A200', 'A700'),
-    // The colors used to represent interface elements that the user should be made aware of.
-    error: augmentColor(error),
-    // The grey colors.
-    grey: _grey.default,
-    // Used by `getContrastText()` to maximize the contrast between the background and
-    // the text.
-    contrastThreshold: contrastThreshold,
-    // Take a background color and return the color of the text to maximize the contrast.
-    getContrastText: getContrastText,
-    // Generate a rich color object.
-    augmentColor: augmentColor,
-    // Used by the functions below to shift a color's luminance by approximately
-    // two indexes within its tonal palette.
-    // E.g., shift from Red 500 to Red 300 or Red 700.
-    tonalOffset: tonalOffset
-  }, types[type]), other, {
-    clone: false // No need to clone deep
-
-  });
-  return paletteOutput;
-}
-},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","warning":"../node_modules/warning/warning.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","../colors/indigo":"../node_modules/@material-ui/core/esm/colors/indigo.js","../colors/pink":"../node_modules/@material-ui/core/esm/colors/pink.js","../colors/grey":"../node_modules/@material-ui/core/esm/colors/grey.js","../colors/red":"../node_modules/@material-ui/core/esm/colors/red.js","../colors/common":"../node_modules/@material-ui/core/esm/colors/common.js","./colorManipulator":"../node_modules/@material-ui/core/esm/styles/colorManipulator.js"}],"../node_modules/@material-ui/core/esm/styles/createTypography.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = createTypography;
-
-var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
-
-var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
-
-var _deepmerge = _interopRequireDefault(require("deepmerge"));
-
-var _warning = _interopRequireDefault(require("warning"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// < 1kb payload overhead when lodash/merge is > 3kb.
-function round(value) {
-  return Math.round(value * 1e5) / 1e5;
-}
-
-var caseAllCaps = {
-  textTransform: 'uppercase'
-};
-var defaultFontFamily = '"Roboto", "Helvetica", "Arial", sans-serif';
-/**
- * @see @link{https://material.io/design/typography/the-type-system.html}
- * @see @link{https://material.io/design/typography/understanding-typography.html}
- */
-
-function createTypography(palette, typography) {
-  var _ref = typeof typography === 'function' ? typography(palette) : typography,
-      _ref$fontFamily = _ref.fontFamily,
-      fontFamily = _ref$fontFamily === void 0 ? defaultFontFamily : _ref$fontFamily,
-      _ref$fontSize = _ref.fontSize,
-      fontSize = _ref$fontSize === void 0 ? 14 : _ref$fontSize,
-      _ref$fontWeightLight = _ref.fontWeightLight,
-      fontWeightLight = _ref$fontWeightLight === void 0 ? 300 : _ref$fontWeightLight,
-      _ref$fontWeightRegula = _ref.fontWeightRegular,
-      fontWeightRegular = _ref$fontWeightRegula === void 0 ? 400 : _ref$fontWeightRegula,
-      _ref$fontWeightMedium = _ref.fontWeightMedium,
-      fontWeightMedium = _ref$fontWeightMedium === void 0 ? 500 : _ref$fontWeightMedium,
-      _ref$fontWeightBold = _ref.fontWeightBold,
-      fontWeightBold = _ref$fontWeightBold === void 0 ? 700 : _ref$fontWeightBold,
-      _ref$htmlFontSize = _ref.htmlFontSize,
-      htmlFontSize = _ref$htmlFontSize === void 0 ? 16 : _ref$htmlFontSize,
-      allVariants = _ref.allVariants,
-      other = (0, _objectWithoutProperties2.default)(_ref, ["fontFamily", "fontSize", "fontWeightLight", "fontWeightRegular", "fontWeightMedium", "fontWeightBold", "htmlFontSize", "allVariants"]);
-
-  "development" !== "production" ? (0, _warning.default)(typeof fontSize === 'number', "Material-UI: 'fontSize' is required to be a number.") : void 0;
-  "development" !== "production" ? (0, _warning.default)(typeof htmlFontSize === 'number', "Material-UI: 'htmlFontSize' is required to be a number.") : void 0;
-  var coef = fontSize / 14;
-
-  var pxToRem = function pxToRem(size) {
-    return "".concat(size / htmlFontSize * coef, "rem");
-  };
-
-  var buildVariant = function buildVariant(fontWeight, size, lineHeight, letterSpacing, casing) {
-    return (0, _extends2.default)({
-      fontFamily: fontFamily,
-      fontWeight: fontWeight,
-      fontSize: pxToRem(size),
-      // Unitless following https://meyerweb.com/eric/thoughts/2006/02/08/unitless-line-heights/
-      lineHeight: lineHeight
-    }, fontFamily === defaultFontFamily ? {
-      letterSpacing: "".concat(round(letterSpacing / size), "em")
-    } : {}, {}, casing, {}, allVariants);
-  };
-
-  var variants = {
-    h1: buildVariant(fontWeightLight, 96, 1, -1.5),
-    h2: buildVariant(fontWeightLight, 60, 1, -0.5),
-    h3: buildVariant(fontWeightRegular, 48, 1.04, 0),
-    h4: buildVariant(fontWeightRegular, 34, 1.17, 0.25),
-    h5: buildVariant(fontWeightRegular, 24, 1.33, 0),
-    h6: buildVariant(fontWeightMedium, 20, 1.6, 0.15),
-    subtitle1: buildVariant(fontWeightRegular, 16, 1.75, 0.15),
-    subtitle2: buildVariant(fontWeightMedium, 14, 1.57, 0.1),
-    body1: buildVariant(fontWeightRegular, 16, 1.5, 0.15),
-    body2: buildVariant(fontWeightRegular, 14, 1.43, 0.15),
-    button: buildVariant(fontWeightMedium, 14, 1.75, 0.4, caseAllCaps),
-    caption: buildVariant(fontWeightRegular, 12, 1.66, 0.4),
-    overline: buildVariant(fontWeightRegular, 12, 2.66, 1, caseAllCaps)
-  };
-  return (0, _deepmerge.default)((0, _extends2.default)({
-    htmlFontSize: htmlFontSize,
-    pxToRem: pxToRem,
-    round: round,
-    fontFamily: fontFamily,
-    fontSize: fontSize,
-    fontWeightLight: fontWeightLight,
-    fontWeightRegular: fontWeightRegular,
-    fontWeightMedium: fontWeightMedium,
-    fontWeightBold: fontWeightBold
-  }, variants), other, {
-    clone: false // No need to clone deep
-
-  });
-}
-},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/shadows.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var shadowKeyUmbraOpacity = 0.2;
-var shadowKeyPenumbraOpacity = 0.14;
-var shadowAmbientShadowOpacity = 0.12;
-
-function createShadow() {
-  return ["".concat(arguments.length <= 0 ? undefined : arguments[0], "px ").concat(arguments.length <= 1 ? undefined : arguments[1], "px ").concat(arguments.length <= 2 ? undefined : arguments[2], "px ").concat(arguments.length <= 3 ? undefined : arguments[3], "px rgba(0,0,0,").concat(shadowKeyUmbraOpacity, ")"), "".concat(arguments.length <= 4 ? undefined : arguments[4], "px ").concat(arguments.length <= 5 ? undefined : arguments[5], "px ").concat(arguments.length <= 6 ? undefined : arguments[6], "px ").concat(arguments.length <= 7 ? undefined : arguments[7], "px rgba(0,0,0,").concat(shadowKeyPenumbraOpacity, ")"), "".concat(arguments.length <= 8 ? undefined : arguments[8], "px ").concat(arguments.length <= 9 ? undefined : arguments[9], "px ").concat(arguments.length <= 10 ? undefined : arguments[10], "px ").concat(arguments.length <= 11 ? undefined : arguments[11], "px rgba(0,0,0,").concat(shadowAmbientShadowOpacity, ")")].join(',');
-}
-
-var shadows = ['none', createShadow(0, 1, 3, 0, 0, 1, 1, 0, 0, 2, 1, -1), createShadow(0, 1, 5, 0, 0, 2, 2, 0, 0, 3, 1, -2), createShadow(0, 1, 8, 0, 0, 3, 4, 0, 0, 3, 3, -2), createShadow(0, 2, 4, -1, 0, 4, 5, 0, 0, 1, 10, 0), createShadow(0, 3, 5, -1, 0, 5, 8, 0, 0, 1, 14, 0), createShadow(0, 3, 5, -1, 0, 6, 10, 0, 0, 1, 18, 0), createShadow(0, 4, 5, -2, 0, 7, 10, 1, 0, 2, 16, 1), createShadow(0, 5, 5, -3, 0, 8, 10, 1, 0, 3, 14, 2), createShadow(0, 5, 6, -3, 0, 9, 12, 1, 0, 3, 16, 2), createShadow(0, 6, 6, -3, 0, 10, 14, 1, 0, 4, 18, 3), createShadow(0, 6, 7, -4, 0, 11, 15, 1, 0, 4, 20, 3), createShadow(0, 7, 8, -4, 0, 12, 17, 2, 0, 5, 22, 4), createShadow(0, 7, 8, -4, 0, 13, 19, 2, 0, 5, 24, 4), createShadow(0, 7, 9, -4, 0, 14, 21, 2, 0, 5, 26, 4), createShadow(0, 8, 9, -5, 0, 15, 22, 2, 0, 6, 28, 5), createShadow(0, 8, 10, -5, 0, 16, 24, 2, 0, 6, 30, 5), createShadow(0, 8, 11, -5, 0, 17, 26, 2, 0, 6, 32, 5), createShadow(0, 9, 11, -5, 0, 18, 28, 2, 0, 7, 34, 6), createShadow(0, 9, 12, -6, 0, 19, 29, 2, 0, 7, 36, 6), createShadow(0, 10, 13, -6, 0, 20, 31, 3, 0, 8, 38, 7), createShadow(0, 10, 13, -6, 0, 21, 33, 3, 0, 8, 40, 7), createShadow(0, 10, 14, -6, 0, 22, 35, 3, 0, 8, 42, 7), createShadow(0, 11, 14, -7, 0, 23, 36, 3, 0, 9, 44, 8), createShadow(0, 11, 15, -7, 0, 24, 38, 3, 0, 9, 46, 8)];
-var _default = shadows;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/styles/shape.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-var shape = {
-  borderRadius: 4
-};
-var _default = shape;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/styles/createSpacing.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = createSpacing;
-
-var _warning = _interopRequireDefault(require("warning"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var warnOnce;
-
-function createSpacing() {
-  var spacingInput = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 8; // Already transformed.
-
-  if (spacingInput.mui) {
-    return spacingInput;
-  } // All components align to an 8dp square baseline grid for mobile, tablet, and desktop.
-  // https://material.io/design/layout/understanding-layout.html#pixel-density
-
-
-  var transform;
-
-  if (typeof spacingInput === 'function') {
-    transform = spacingInput;
-  } else {
-    "development" !== "production" ? (0, _warning.default)(typeof spacingInput === 'number', ["Material-UI: the `theme.spacing` value (".concat(spacingInput, ") is invalid."), 'It should be a number or a function.'].join('\n')) : void 0;
-
-    transform = function transform(factor) {
-      "development" !== "production" ? (0, _warning.default)(typeof factor === 'number', "Expected spacing argument to be a number, got ".concat(factor)) : void 0;
-      return spacingInput * factor;
-    };
-  }
-
-  var spacing = function spacing() {
-    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-      args[_key] = arguments[_key];
-    }
-
-    "development" !== "production" ? (0, _warning.default)(args.length <= 4, "Material-UI: Too many arguments provided, expected between 0 and 4, got ".concat(args.length)) : void 0;
-
-    if (args.length === 0) {
-      return transform(1);
-    }
-
-    if (args.length === 1) {
-      return transform(args[0]);
-    }
-
-    return args.map(function (factor) {
-      var output = transform(factor);
-      return typeof output === 'number' ? "".concat(output, "px") : output;
-    }).join(' ');
-  }; // Backward compatibility, to remove in v5.
-
-
-  Object.defineProperty(spacing, 'unit', {
-    get: function get() {
-      if ("development" !== 'production') {
-        "development" !== "production" ? (0, _warning.default)(warnOnce && "development" !== 'test', ['Material-UI: theme.spacing.unit usage has been deprecated.', 'It will be removed in v5.', 'You can replace `theme.spacing.unit * y` with `theme.spacing(y)`.', '', 'You can use the `https://github.com/mui-org/material-ui/tree/master/packages/material-ui-codemod/README.md#theme-spacing-api` migration helper to make the process smoother.'].join('\n')) : void 0;
-        warnOnce = true;
-      }
-
-      return spacingInput;
-    }
-  });
-  spacing.mui = true;
-  return spacing;
-}
-},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/transitions.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = exports.isNumber = exports.isString = exports.formatMs = exports.duration = exports.easing = void 0;
-
-var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
-
-var _warning = _interopRequireDefault(require("warning"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/* eslint-disable no-restricted-globals */
-// Follow https://material.google.com/motion/duration-easing.html#duration-easing-natural-easing-curves
-// to learn the context in which each easing should be used.
-var easing = {
-  // This is the most common easing curve.
-  easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  // Objects enter the screen at full velocity from off-screen and
-  // slowly decelerate to a resting point.
-  easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',
-  // Objects leave the screen at full velocity. They do not decelerate when off-screen.
-  easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
-  // The sharp curve is used by objects that may return to the screen at any time.
-  sharp: 'cubic-bezier(0.4, 0, 0.6, 1)'
-}; // Follow https://material.io/guidelines/motion/duration-easing.html#duration-easing-common-durations
-// to learn when use what timing
-
-exports.easing = easing;
-var duration = {
-  shortest: 150,
-  shorter: 200,
-  short: 250,
-  // most basic recommended timing
-  standard: 300,
-  // this is to be used in complex animations
-  complex: 375,
-  // recommended when something is entering screen
-  enteringScreen: 225,
-  // recommended when something is leaving screen
-  leavingScreen: 195
-};
-exports.duration = duration;
-
-var formatMs = function formatMs(milliseconds) {
-  return "".concat(Math.round(milliseconds), "ms");
-};
-
-exports.formatMs = formatMs;
-
-var isString = function isString(value) {
-  return typeof value === 'string';
-};
-
-exports.isString = isString;
-
-var isNumber = function isNumber(value) {
-  return !isNaN(parseFloat(value));
-};
-/**
- * @param {string|Array} props
- * @param {object} param
- * @param {string} param.prop
- * @param {number} param.duration
- * @param {string} param.easing
- * @param {number} param.delay
- */
-
-
-exports.isNumber = isNumber;
-var _default = {
-  easing: easing,
-  duration: duration,
-  create: function create() {
-    var props = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : ['all'];
-    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    var _options$duration = options.duration,
-        durationOption = _options$duration === void 0 ? duration.standard : _options$duration,
-        _options$easing = options.easing,
-        easingOption = _options$easing === void 0 ? easing.easeInOut : _options$easing,
-        _options$delay = options.delay,
-        delay = _options$delay === void 0 ? 0 : _options$delay,
-        other = (0, _objectWithoutProperties2.default)(options, ["duration", "easing", "delay"]);
-    "development" !== "production" ? (0, _warning.default)(isString(props) || Array.isArray(props), 'Material-UI: argument "props" must be a string or Array.') : void 0;
-    "development" !== "production" ? (0, _warning.default)(isNumber(durationOption) || isString(durationOption), "Material-UI: argument \"duration\" must be a number or a string but found ".concat(durationOption, ".")) : void 0;
-    "development" !== "production" ? (0, _warning.default)(isString(easingOption), 'Material-UI: argument "easing" must be a string.') : void 0;
-    "development" !== "production" ? (0, _warning.default)(isNumber(delay) || isString(delay), 'Material-UI: argument "delay" must be a number or a string.') : void 0;
-    "development" !== "production" ? (0, _warning.default)(Object.keys(other).length === 0, "Material-UI: unrecognized argument(s) [".concat(Object.keys(other).join(','), "]")) : void 0;
-    return (Array.isArray(props) ? props : [props]).map(function (animatedProp) {
-      return "".concat(animatedProp, " ").concat(typeof durationOption === 'string' ? durationOption : formatMs(durationOption), " ").concat(easingOption, " ").concat(typeof delay === 'string' ? delay : formatMs(delay));
-    }).join(',');
-  },
-  getAutoHeightDuration: function getAutoHeightDuration(height) {
-    if (!height) {
-      return 0;
-    }
-
-    var constant = height / 36; // https://www.wolframalpha.com/input/?i=(4+%2B+15+*+(x+%2F+36+)+**+0.25+%2B+(x+%2F+36)+%2F+5)+*+10
-
-    return Math.round((4 + 15 * Math.pow(constant, 0.25) + constant / 5) * 10);
-  }
-};
-exports.default = _default;
-},{"@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/zIndex.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-// We need to centralize the zIndex definitions as they work
-// like global values in the browser.
-var zIndex = {
-  mobileStepper: 1000,
-  appBar: 1100,
-  drawer: 1200,
-  modal: 1300,
-  snackbar: 1400,
-  tooltip: 1500
-};
-var _default = zIndex;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/core/esm/styles/createMuiTheme.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/defineProperty"));
-
-var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
-
-var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
-
-var _deepmerge = _interopRequireDefault(require("deepmerge"));
-
-var _isPlainObject = _interopRequireDefault(require("is-plain-object"));
-
-var _warning = _interopRequireDefault(require("warning"));
-
-var _createBreakpoints = _interopRequireDefault(require("./createBreakpoints"));
-
-var _createMixins = _interopRequireDefault(require("./createMixins"));
-
-var _createPalette = _interopRequireDefault(require("./createPalette"));
-
-var _createTypography = _interopRequireDefault(require("./createTypography"));
-
-var _shadows = _interopRequireDefault(require("./shadows"));
-
-var _shape = _interopRequireDefault(require("./shape"));
-
-var _createSpacing = _interopRequireDefault(require("./createSpacing"));
-
-var _transitions = _interopRequireDefault(require("./transitions"));
-
-var _zIndex = _interopRequireDefault(require("./zIndex"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// < 1kb payload overhead when lodash/merge is > 3kb.
-function createMuiTheme() {
-  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  var _options$breakpoints = options.breakpoints,
-      breakpointsInput = _options$breakpoints === void 0 ? {} : _options$breakpoints,
-      _options$mixins = options.mixins,
-      mixinsInput = _options$mixins === void 0 ? {} : _options$mixins,
-      _options$palette = options.palette,
-      paletteInput = _options$palette === void 0 ? {} : _options$palette,
-      shadowsInput = options.shadows,
-      spacingInput = options.spacing,
-      _options$typography = options.typography,
-      typographyInput = _options$typography === void 0 ? {} : _options$typography,
-      other = (0, _objectWithoutProperties2.default)(options, ["breakpoints", "mixins", "palette", "shadows", "spacing", "typography"]);
-  var palette = (0, _createPalette.default)(paletteInput);
-  var breakpoints = (0, _createBreakpoints.default)(breakpointsInput);
-  var spacing = (0, _createSpacing.default)(spacingInput);
-  var muiTheme = (0, _extends2.default)({
-    breakpoints: breakpoints,
-    direction: 'ltr',
-    mixins: (0, _createMixins.default)(breakpoints, spacing, mixinsInput),
-    overrides: {},
-    // Inject custom styles
-    palette: palette,
-    props: {},
-    // Inject custom props
-    shadows: shadowsInput || _shadows.default,
-    typography: (0, _createTypography.default)(palette, typographyInput),
-    spacing: spacing
-  }, (0, _deepmerge.default)({
-    shape: _shape.default,
-    transitions: _transitions.default,
-    zIndex: _zIndex.default
-  }, other, {
-    isMergeableObject: _isPlainObject.default
-  }));
-
-  if ("development" !== 'production') {
-    var pseudoClasses = ['checked', 'disabled', 'error', 'focused', 'focusVisible', 'required', 'expanded', 'selected'];
-
-    var traverse = function traverse(node, parentKey) {
-      var depth = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
-      var key; // eslint-disable-next-line guard-for-in, no-restricted-syntax
-
-      for (key in node) {
-        var child = node[key];
-
-        if (depth === 1) {
-          if (key.indexOf('Mui') === 0 && child) {
-            traverse(child, key, depth + 1);
-          }
-        } else if (pseudoClasses.indexOf(key) !== -1 && Object.keys(child).length > 0) {
-          "development" !== "production" ? (0, _warning.default)(false, ["Material-UI: the `".concat(parentKey, "` component increases ") + "the CSS specificity of the `".concat(key, "` internal state."), 'You can not override it like this: ', JSON.stringify(node, null, 2), '', 'Instead, you need to use the $ruleName syntax:', JSON.stringify({
-            root: (0, _defineProperty2.default)({}, "&$".concat(key), child)
-          }, null, 2), '', 'https://material-ui.com/r/pseudo-classes-guide'].join('\n')) : void 0; // Remove the style to prevent global conflicts.
-
-          node[key] = {};
-        }
-      }
-    };
-
-    traverse(muiTheme.overrides);
-  }
-
-  "development" !== "production" ? (0, _warning.default)(muiTheme.shadows.length === 25, 'Material-UI: the shadows array provided to createMuiTheme should support 25 elevations.') : void 0;
-  return muiTheme;
-}
-
-var _default = createMuiTheme;
-exports.default = _default;
-},{"@babel/runtime/helpers/esm/defineProperty":"../node_modules/@babel/runtime/helpers/esm/defineProperty.js","@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","is-plain-object":"../node_modules/@material-ui/core/node_modules/is-plain-object/index.js","warning":"../node_modules/warning/warning.js","./createBreakpoints":"../node_modules/@material-ui/core/esm/styles/createBreakpoints.js","./createMixins":"../node_modules/@material-ui/core/esm/styles/createMixins.js","./createPalette":"../node_modules/@material-ui/core/esm/styles/createPalette.js","./createTypography":"../node_modules/@material-ui/core/esm/styles/createTypography.js","./shadows":"../node_modules/@material-ui/core/esm/styles/shadows.js","./shape":"../node_modules/@material-ui/core/esm/styles/shape.js","./createSpacing":"../node_modules/@material-ui/core/esm/styles/createSpacing.js","./transitions":"../node_modules/@material-ui/core/esm/styles/transitions.js","./zIndex":"../node_modules/@material-ui/core/esm/styles/zIndex.js"}],"../node_modules/@material-ui/utils/esm/chainPropTypes.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = void 0;
-
-function chainPropTypes(propType1, propType2) {
-  if ("development" === 'production') {
-    return function () {
-      return null;
-    };
-  }
-
-  return function validate() {
-    return propType1.apply(void 0, arguments) || propType2.apply(void 0, arguments);
-  };
-}
-
-var _default = chainPropTypes;
-exports.default = _default;
-},{}],"../node_modules/@material-ui/utils/esm/elementAcceptingRef.js":[function(require,module,exports) {
+},{"react-is":"../node_modules/react-is/index.js","./factoryWithTypeCheckers":"../node_modules/prop-types/factoryWithTypeCheckers.js"}],"../node_modules/@material-ui/utils/esm/elementAcceptingRef.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -28539,7 +26796,54 @@ function elementTypeAcceptingRef(props, propName, componentName, location, propF
 var _default = (0, _chainPropTypes.default)(PropTypes.elementType, elementTypeAcceptingRef);
 
 exports.default = _default;
-},{"prop-types":"../node_modules/prop-types/index.js","./chainPropTypes":"../node_modules/@material-ui/utils/esm/chainPropTypes.js"}],"../node_modules/@material-ui/utils/esm/exactProp.js":[function(require,module,exports) {
+},{"prop-types":"../node_modules/prop-types/index.js","./chainPropTypes":"../node_modules/@material-ui/utils/esm/chainPropTypes.js"}],"../node_modules/@babel/runtime/helpers/esm/defineProperty.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _defineProperty;
+
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+},{}],"../node_modules/@babel/runtime/helpers/esm/extends.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _extends;
+
+function _extends() {
+  exports.default = _extends = Object.assign || function (target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+
+      for (var key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+
+    return target;
+  };
+
+  return _extends.apply(this, arguments);
+}
+},{}],"../node_modules/@material-ui/utils/esm/exactProp.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -28764,7 +27068,71 @@ var _getDisplayName = _interopRequireDefault(require("./getDisplayName"));
 var _ponyfillGlobal = _interopRequireDefault(require("./ponyfillGlobal"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-},{"./chainPropTypes":"../node_modules/@material-ui/utils/esm/chainPropTypes.js","./elementAcceptingRef":"../node_modules/@material-ui/utils/esm/elementAcceptingRef.js","./elementTypeAcceptingRef":"../node_modules/@material-ui/utils/esm/elementTypeAcceptingRef.js","./exactProp":"../node_modules/@material-ui/utils/esm/exactProp.js","./getDisplayName":"../node_modules/@material-ui/utils/esm/getDisplayName.js","./ponyfillGlobal":"../node_modules/@material-ui/utils/esm/ponyfillGlobal.js"}],"../node_modules/@material-ui/styles/esm/ThemeProvider/nested.js":[function(require,module,exports) {
+},{"./chainPropTypes":"../node_modules/@material-ui/utils/esm/chainPropTypes.js","./elementAcceptingRef":"../node_modules/@material-ui/utils/esm/elementAcceptingRef.js","./elementTypeAcceptingRef":"../node_modules/@material-ui/utils/esm/elementTypeAcceptingRef.js","./exactProp":"../node_modules/@material-ui/utils/esm/exactProp.js","./getDisplayName":"../node_modules/@material-ui/utils/esm/getDisplayName.js","./ponyfillGlobal":"../node_modules/@material-ui/utils/esm/ponyfillGlobal.js"}],"../node_modules/warning/warning.js":[function(require,module,exports) {
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+'use strict';
+/**
+ * Similar to invariant but only logs a warning if the condition is not met.
+ * This can be used to log issues in development environments in critical
+ * paths. Removing the logging code for production environments will keep the
+ * same logic and follow the same code paths.
+ */
+
+var __DEV__ = "development" !== 'production';
+
+var warning = function () {};
+
+if (__DEV__) {
+  var printWarning = function printWarning(format, args) {
+    var len = arguments.length;
+    args = new Array(len > 1 ? len - 1 : 0);
+
+    for (var key = 1; key < len; key++) {
+      args[key - 1] = arguments[key];
+    }
+
+    var argIndex = 0;
+    var message = 'Warning: ' + format.replace(/%s/g, function () {
+      return args[argIndex++];
+    });
+
+    if (typeof console !== 'undefined') {
+      console.error(message);
+    }
+
+    try {
+      // --- Welcome to debugging React ---
+      // This error was thrown as a convenience so that you can use this stack
+      // to find the callsite that caused this warning to fire.
+      throw new Error(message);
+    } catch (x) {}
+  };
+
+  warning = function (condition, format, args) {
+    var len = arguments.length;
+    args = new Array(len > 2 ? len - 2 : 0);
+
+    for (var key = 2; key < len; key++) {
+      args[key - 2] = arguments[key];
+    }
+
+    if (format === undefined) {
+      throw new Error('`warning(condition, format, ...args)` requires a warning ' + 'message argument');
+    }
+
+    if (!condition) {
+      printWarning.apply(null, [format].concat(args));
+    }
+  };
+}
+
+module.exports = warning;
+},{}],"../node_modules/@material-ui/styles/esm/ThemeProvider/nested.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -29039,6 +27407,28 @@ function _assertThisInitialized(self) {
   }
 
   return self;
+}
+},{}],"../node_modules/@babel/runtime/helpers/esm/objectWithoutPropertiesLoose.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _objectWithoutPropertiesLoose;
+
+function _objectWithoutPropertiesLoose(source, excluded) {
+  if (source == null) return {};
+  var target = {};
+  var sourceKeys = Object.keys(source);
+  var key, i;
+
+  for (i = 0; i < sourceKeys.length; i++) {
+    key = sourceKeys[i];
+    if (excluded.indexOf(key) >= 0) continue;
+    target[key] = source[key];
+  }
+
+  return target;
 }
 },{}],"../node_modules/jss/dist/jss.esm.js":[function(require,module,exports) {
 "use strict";
@@ -32713,7 +31103,37 @@ Object.defineProperty(exports, "default", {
 var _jssPreset = _interopRequireDefault(require("./jssPreset"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-},{"./jssPreset":"../node_modules/@material-ui/styles/esm/jssPreset/jssPreset.js"}],"../node_modules/@material-ui/styles/esm/mergeClasses/mergeClasses.js":[function(require,module,exports) {
+},{"./jssPreset":"../node_modules/@material-ui/styles/esm/jssPreset/jssPreset.js"}],"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _objectWithoutProperties;
+
+var _objectWithoutPropertiesLoose = _interopRequireDefault(require("./objectWithoutPropertiesLoose"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _objectWithoutProperties(source, excluded) {
+  if (source == null) return {};
+  var target = (0, _objectWithoutPropertiesLoose.default)(source, excluded);
+  var key, i;
+
+  if (Object.getOwnPropertySymbols) {
+    var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
+
+    for (i = 0; i < sourceSymbolKeys.length; i++) {
+      key = sourceSymbolKeys[i];
+      if (excluded.indexOf(key) >= 0) continue;
+      if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+      target[key] = source[key];
+    }
+  }
+
+  return target;
+}
+},{"./objectWithoutPropertiesLoose":"../node_modules/@babel/runtime/helpers/esm/objectWithoutPropertiesLoose.js"}],"../node_modules/@material-ui/styles/esm/mergeClasses/mergeClasses.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -33066,7 +31486,112 @@ function increment() {
   "development" !== "production" ? (0, _warning.default)(indexCounter < 0, ['Material-UI: you might have a memory leak.', 'The indexCounter is not supposed to grow that much.'].join('\n')) : void 0;
   return indexCounter;
 }
-},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/styles/esm/getStylesCreator/noopTheme.js":[function(require,module,exports) {
+},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/deepmerge/dist/cjs.js":[function(require,module,exports) {
+'use strict';
+
+var isMergeableObject = function isMergeableObject(value) {
+  return isNonNullObject(value) && !isSpecial(value);
+};
+
+function isNonNullObject(value) {
+  return !!value && typeof value === 'object';
+}
+
+function isSpecial(value) {
+  var stringValue = Object.prototype.toString.call(value);
+  return stringValue === '[object RegExp]' || stringValue === '[object Date]' || isReactElement(value);
+} // see https://github.com/facebook/react/blob/b5ac963fb791d1298e7f396236383bc955f916c1/src/isomorphic/classic/element/ReactElement.js#L21-L25
+
+
+var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
+var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
+
+function isReactElement(value) {
+  return value.$$typeof === REACT_ELEMENT_TYPE;
+}
+
+function emptyTarget(val) {
+  return Array.isArray(val) ? [] : {};
+}
+
+function cloneUnlessOtherwiseSpecified(value, options) {
+  return options.clone !== false && options.isMergeableObject(value) ? deepmerge(emptyTarget(value), value, options) : value;
+}
+
+function defaultArrayMerge(target, source, options) {
+  return target.concat(source).map(function (element) {
+    return cloneUnlessOtherwiseSpecified(element, options);
+  });
+}
+
+function getMergeFunction(key, options) {
+  if (!options.customMerge) {
+    return deepmerge;
+  }
+
+  var customMerge = options.customMerge(key);
+  return typeof customMerge === 'function' ? customMerge : deepmerge;
+}
+
+function getEnumerableOwnPropertySymbols(target) {
+  return Object.getOwnPropertySymbols ? Object.getOwnPropertySymbols(target).filter(function (symbol) {
+    return target.propertyIsEnumerable(symbol);
+  }) : [];
+}
+
+function getKeys(target) {
+  return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target));
+}
+
+function mergeObject(target, source, options) {
+  var destination = {};
+
+  if (options.isMergeableObject(target)) {
+    getKeys(target).forEach(function (key) {
+      destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
+    });
+  }
+
+  getKeys(source).forEach(function (key) {
+    if (!options.isMergeableObject(source[key]) || !target[key]) {
+      destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
+    } else {
+      destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
+    }
+  });
+  return destination;
+}
+
+function deepmerge(target, source, options) {
+  options = options || {};
+  options.arrayMerge = options.arrayMerge || defaultArrayMerge;
+  options.isMergeableObject = options.isMergeableObject || isMergeableObject;
+  var sourceIsArray = Array.isArray(source);
+  var targetIsArray = Array.isArray(target);
+  var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
+
+  if (!sourceAndTargetTypesMatch) {
+    return cloneUnlessOtherwiseSpecified(source, options);
+  } else if (sourceIsArray) {
+    return options.arrayMerge(target, source, options);
+  } else {
+    return mergeObject(target, source, options);
+  }
+}
+
+deepmerge.all = function deepmergeAll(array, options) {
+  if (!Array.isArray(array)) {
+    throw new Error('first argument should be an array');
+  }
+
+  return array.reduce(function (prev, next) {
+    return deepmerge(prev, next, options);
+  }, {});
+};
+
+var deepmerge_1 = deepmerge;
+module.exports = deepmerge_1;
+},{}],"../node_modules/@material-ui/styles/esm/getStylesCreator/noopTheme.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -34394,7 +32919,1497 @@ if ("development" !== 'production' && "development" !== 'test' && typeof window 
 
   _utils.ponyfillGlobal['__@material-ui/styles-init__'] += 1;
 }
-},{"@material-ui/utils":"../node_modules/@material-ui/utils/esm/index.js","./createGenerateClassName":"../node_modules/@material-ui/styles/esm/createGenerateClassName/index.js","./createStyles":"../node_modules/@material-ui/styles/esm/createStyles/index.js","./getThemeProps":"../node_modules/@material-ui/styles/esm/getThemeProps/index.js","./jssPreset":"../node_modules/@material-ui/styles/esm/jssPreset/index.js","./makeStyles":"../node_modules/@material-ui/styles/esm/makeStyles/index.js","./mergeClasses":"../node_modules/@material-ui/styles/esm/mergeClasses/index.js","./ServerStyleSheets":"../node_modules/@material-ui/styles/esm/ServerStyleSheets/index.js","./styled":"../node_modules/@material-ui/styles/esm/styled/index.js","./StylesProvider":"../node_modules/@material-ui/styles/esm/StylesProvider/index.js","./ThemeProvider":"../node_modules/@material-ui/styles/esm/ThemeProvider/index.js","./useTheme":"../node_modules/@material-ui/styles/esm/useTheme/index.js","./withStyles":"../node_modules/@material-ui/styles/esm/withStyles/index.js","./withTheme":"../node_modules/@material-ui/styles/esm/withTheme/index.js"}],"../node_modules/@material-ui/core/esm/styles/createStyles.js":[function(require,module,exports) {
+},{"@material-ui/utils":"../node_modules/@material-ui/utils/esm/index.js","./createGenerateClassName":"../node_modules/@material-ui/styles/esm/createGenerateClassName/index.js","./createStyles":"../node_modules/@material-ui/styles/esm/createStyles/index.js","./getThemeProps":"../node_modules/@material-ui/styles/esm/getThemeProps/index.js","./jssPreset":"../node_modules/@material-ui/styles/esm/jssPreset/index.js","./makeStyles":"../node_modules/@material-ui/styles/esm/makeStyles/index.js","./mergeClasses":"../node_modules/@material-ui/styles/esm/mergeClasses/index.js","./ServerStyleSheets":"../node_modules/@material-ui/styles/esm/ServerStyleSheets/index.js","./styled":"../node_modules/@material-ui/styles/esm/styled/index.js","./StylesProvider":"../node_modules/@material-ui/styles/esm/StylesProvider/index.js","./ThemeProvider":"../node_modules/@material-ui/styles/esm/ThemeProvider/index.js","./useTheme":"../node_modules/@material-ui/styles/esm/useTheme/index.js","./withStyles":"../node_modules/@material-ui/styles/esm/withStyles/index.js","./withTheme":"../node_modules/@material-ui/styles/esm/withTheme/index.js"}],"../node_modules/@material-ui/core/styles/MuiThemeProvider.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _styles = require("@material-ui/styles");
+
+/**
+ * @ignore - do not document.
+ */
+var _default = _styles.ThemeProvider;
+exports.default = _default;
+},{"@material-ui/styles":"../node_modules/@material-ui/styles/esm/index.js"}],"../node_modules/uuid/lib/rng-browser.js":[function(require,module,exports) {
+// Unique ID creation requires a high quality random # generator.  In the
+// browser this is a little complicated due to unknown quality of Math.random()
+// and inconsistent support for the `crypto` API.  We do the best we can via
+// feature-detection
+
+// getRandomValues needs to be invoked in a context where "this" is a Crypto
+// implementation. Also, find the complete implementation of crypto on IE11.
+var getRandomValues = (typeof(crypto) != 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto)) ||
+                      (typeof(msCrypto) != 'undefined' && typeof window.msCrypto.getRandomValues == 'function' && msCrypto.getRandomValues.bind(msCrypto));
+
+if (getRandomValues) {
+  // WHATWG crypto RNG - http://wiki.whatwg.org/wiki/Crypto
+  var rnds8 = new Uint8Array(16); // eslint-disable-line no-undef
+
+  module.exports = function whatwgRNG() {
+    getRandomValues(rnds8);
+    return rnds8;
+  };
+} else {
+  // Math.random()-based (RNG)
+  //
+  // If all else fails, use Math.random().  It's fast, but is of unspecified
+  // quality.
+  var rnds = new Array(16);
+
+  module.exports = function mathRNG() {
+    for (var i = 0, r; i < 16; i++) {
+      if ((i & 0x03) === 0) r = Math.random() * 0x100000000;
+      rnds[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return rnds;
+  };
+}
+
+},{}],"../node_modules/uuid/lib/bytesToUuid.js":[function(require,module,exports) {
+/**
+ * Convert array of 16 byte values to UUID string format of the form:
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+ */
+var byteToHex = [];
+for (var i = 0; i < 256; ++i) {
+  byteToHex[i] = (i + 0x100).toString(16).substr(1);
+}
+
+function bytesToUuid(buf, offset) {
+  var i = offset || 0;
+  var bth = byteToHex;
+  // join used to fix memory issue caused by concatenation: https://bugs.chromium.org/p/v8/issues/detail?id=3175#c4
+  return ([bth[buf[i++]], bth[buf[i++]], 
+	bth[buf[i++]], bth[buf[i++]], '-',
+	bth[buf[i++]], bth[buf[i++]], '-',
+	bth[buf[i++]], bth[buf[i++]], '-',
+	bth[buf[i++]], bth[buf[i++]], '-',
+	bth[buf[i++]], bth[buf[i++]],
+	bth[buf[i++]], bth[buf[i++]],
+	bth[buf[i++]], bth[buf[i++]]]).join('');
+}
+
+module.exports = bytesToUuid;
+
+},{}],"../node_modules/uuid/v1.js":[function(require,module,exports) {
+var rng = require('./lib/rng');
+var bytesToUuid = require('./lib/bytesToUuid');
+
+// **`v1()` - Generate time-based UUID**
+//
+// Inspired by https://github.com/LiosK/UUID.js
+// and http://docs.python.org/library/uuid.html
+
+var _nodeId;
+var _clockseq;
+
+// Previous uuid creation time
+var _lastMSecs = 0;
+var _lastNSecs = 0;
+
+// See https://github.com/broofa/node-uuid for API details
+function v1(options, buf, offset) {
+  var i = buf && offset || 0;
+  var b = buf || [];
+
+  options = options || {};
+  var node = options.node || _nodeId;
+  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq;
+
+  // node and clockseq need to be initialized to random values if they're not
+  // specified.  We do this lazily to minimize issues related to insufficient
+  // system entropy.  See #189
+  if (node == null || clockseq == null) {
+    var seedBytes = rng();
+    if (node == null) {
+      // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
+      node = _nodeId = [
+        seedBytes[0] | 0x01,
+        seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]
+      ];
+    }
+    if (clockseq == null) {
+      // Per 4.2.2, randomize (14 bit) clockseq
+      clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
+    }
+  }
+
+  // UUID timestamps are 100 nano-second units since the Gregorian epoch,
+  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
+  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
+  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
+  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime();
+
+  // Per 4.2.1.2, use count of uuid's generated during the current clock
+  // cycle to simulate higher resolution clock
+  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1;
+
+  // Time since last uuid creation (in msecs)
+  var dt = (msecs - _lastMSecs) + (nsecs - _lastNSecs)/10000;
+
+  // Per 4.2.1.2, Bump clockseq on clock regression
+  if (dt < 0 && options.clockseq === undefined) {
+    clockseq = clockseq + 1 & 0x3fff;
+  }
+
+  // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
+  // time interval
+  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
+    nsecs = 0;
+  }
+
+  // Per 4.2.1.2 Throw error if too many uuids are requested
+  if (nsecs >= 10000) {
+    throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
+  }
+
+  _lastMSecs = msecs;
+  _lastNSecs = nsecs;
+  _clockseq = clockseq;
+
+  // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
+  msecs += 12219292800000;
+
+  // `time_low`
+  var tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
+  b[i++] = tl >>> 24 & 0xff;
+  b[i++] = tl >>> 16 & 0xff;
+  b[i++] = tl >>> 8 & 0xff;
+  b[i++] = tl & 0xff;
+
+  // `time_mid`
+  var tmh = (msecs / 0x100000000 * 10000) & 0xfffffff;
+  b[i++] = tmh >>> 8 & 0xff;
+  b[i++] = tmh & 0xff;
+
+  // `time_high_and_version`
+  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
+  b[i++] = tmh >>> 16 & 0xff;
+
+  // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
+  b[i++] = clockseq >>> 8 | 0x80;
+
+  // `clock_seq_low`
+  b[i++] = clockseq & 0xff;
+
+  // `node`
+  for (var n = 0; n < 6; ++n) {
+    b[i + n] = node[n];
+  }
+
+  return buf ? buf : bytesToUuid(b);
+}
+
+module.exports = v1;
+
+},{"./lib/rng":"../node_modules/uuid/lib/rng-browser.js","./lib/bytesToUuid":"../node_modules/uuid/lib/bytesToUuid.js"}],"../node_modules/uuid/v4.js":[function(require,module,exports) {
+var rng = require('./lib/rng');
+var bytesToUuid = require('./lib/bytesToUuid');
+
+function v4(options, buf, offset) {
+  var i = buf && offset || 0;
+
+  if (typeof(options) == 'string') {
+    buf = options === 'binary' ? new Array(16) : null;
+    options = null;
+  }
+  options = options || {};
+
+  var rnds = options.random || (options.rng || rng)();
+
+  // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+  rnds[6] = (rnds[6] & 0x0f) | 0x40;
+  rnds[8] = (rnds[8] & 0x3f) | 0x80;
+
+  // Copy bytes to buffer, if provided
+  if (buf) {
+    for (var ii = 0; ii < 16; ++ii) {
+      buf[i + ii] = rnds[ii];
+    }
+  }
+
+  return buf || bytesToUuid(rnds);
+}
+
+module.exports = v4;
+
+},{"./lib/rng":"../node_modules/uuid/lib/rng-browser.js","./lib/bytesToUuid":"../node_modules/uuid/lib/bytesToUuid.js"}],"../node_modules/uuid/index.js":[function(require,module,exports) {
+var v1 = require('./v1');
+var v4 = require('./v4');
+
+var uuid = v4;
+uuid.v1 = v1;
+uuid.v4 = v4;
+
+module.exports = uuid;
+
+},{"./v1":"../node_modules/uuid/v1.js","./v4":"../node_modules/uuid/v4.js"}],"../node_modules/@material-ui/core/esm/styles/colorManipulator.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.hexToRgb = hexToRgb;
+exports.rgbToHex = rgbToHex;
+exports.hslToRgb = hslToRgb;
+exports.decomposeColor = decomposeColor;
+exports.recomposeColor = recomposeColor;
+exports.getContrastRatio = getContrastRatio;
+exports.getLuminance = getLuminance;
+exports.emphasize = emphasize;
+exports.fade = fade;
+exports.darken = darken;
+exports.lighten = lighten;
+
+var _warning = _interopRequireDefault(require("warning"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/* eslint-disable no-use-before-define */
+
+/**
+ * Returns a number whose value is limited to the given range.
+ *
+ * @param {number} value The value to be clamped
+ * @param {number} min The lower boundary of the output range
+ * @param {number} max The upper boundary of the output range
+ * @returns {number} A number in the range [min, max]
+ */
+function clamp(value) {
+  var min = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+  var max = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
+  "development" !== "production" ? (0, _warning.default)(value >= min && value <= max, "Material-UI: the value provided ".concat(value, " is out of range [").concat(min, ", ").concat(max, "].")) : void 0;
+
+  if (value < min) {
+    return min;
+  }
+
+  if (value > max) {
+    return max;
+  }
+
+  return value;
+}
+/**
+ * Converts a color from CSS hex format to CSS rgb format.
+ *
+ * @param {string} color - Hex color, i.e. #nnn or #nnnnnn
+ * @returns {string} A CSS rgb color string
+ */
+
+
+function hexToRgb(color) {
+  color = color.substr(1);
+  var re = new RegExp(".{1,".concat(color.length / 3, "}"), 'g');
+  var colors = color.match(re);
+
+  if (colors && colors[0].length === 1) {
+    colors = colors.map(function (n) {
+      return n + n;
+    });
+  }
+
+  return colors ? "rgb(".concat(colors.map(function (n) {
+    return parseInt(n, 16);
+  }).join(', '), ")") : '';
+}
+
+function intToHex(int) {
+  var hex = int.toString(16);
+  return hex.length === 1 ? "0".concat(hex) : hex;
+}
+/**
+ * Converts a color from CSS rgb format to CSS hex format.
+ *
+ * @param {string} color - RGB color, i.e. rgb(n, n, n)
+ * @returns {string} A CSS rgb color string, i.e. #nnnnnn
+ */
+
+
+function rgbToHex(color) {
+  // Idempotent
+  if (color.indexOf('#') === 0) {
+    return color;
+  }
+
+  var _decomposeColor = decomposeColor(color),
+      values = _decomposeColor.values;
+
+  return "#".concat(values.map(function (n) {
+    return intToHex(n);
+  }).join(''));
+}
+/**
+ * Converts a color from hsl format to rgb format.
+ *
+ * @param {string} color - HSL color values
+ * @returns {string} rgb color values
+ */
+
+
+function hslToRgb(color) {
+  color = decomposeColor(color);
+  var _color = color,
+      values = _color.values;
+  var h = values[0];
+  var s = values[1] / 100;
+  var l = values[2] / 100;
+  var a = s * Math.min(l, 1 - l);
+
+  var f = function f(n) {
+    var k = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : (n + h / 30) % 12;
+    return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+  };
+
+  var type = 'rgb';
+  var rgb = [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+
+  if (color.type === 'hsla') {
+    type += 'a';
+    rgb.push(values[3]);
+  }
+
+  return recomposeColor({
+    type: type,
+    values: rgb
+  });
+}
+/**
+ * Returns an object with the type and values of a color.
+ *
+ * Note: Does not support rgb % values.
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @returns {object} - A MUI color object: {type: string, values: number[]}
+ */
+
+
+function decomposeColor(color) {
+  // Idempotent
+  if (color.type) {
+    return color;
+  }
+
+  if (color.charAt(0) === '#') {
+    return decomposeColor(hexToRgb(color));
+  }
+
+  var marker = color.indexOf('(');
+  var type = color.substring(0, marker);
+
+  if (['rgb', 'rgba', 'hsl', 'hsla'].indexOf(type) === -1) {
+    throw new Error(["Material-UI: unsupported `".concat(color, "` color."), 'We support the following formats: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla().'].join('\n'));
+  }
+
+  var values = color.substring(marker + 1, color.length - 1).split(',');
+  values = values.map(function (value) {
+    return parseFloat(value);
+  });
+  return {
+    type: type,
+    values: values
+  };
+}
+/**
+ * Converts a color object with type and values to a string.
+ *
+ * @param {object} color - Decomposed color
+ * @param {string} color.type - One of: 'rgb', 'rgba', 'hsl', 'hsla'
+ * @param {array} color.values - [n,n,n] or [n,n,n,n]
+ * @returns {string} A CSS color string
+ */
+
+
+function recomposeColor(color) {
+  var type = color.type;
+  var values = color.values;
+
+  if (type.indexOf('rgb') !== -1) {
+    // Only convert the first 3 values to int (i.e. not alpha)
+    values = values.map(function (n, i) {
+      return i < 3 ? parseInt(n, 10) : n;
+    });
+  } else if (type.indexOf('hsl') !== -1) {
+    values[1] = "".concat(values[1], "%");
+    values[2] = "".concat(values[2], "%");
+  }
+
+  return "".concat(type, "(").concat(values.join(', '), ")");
+}
+/**
+ * Calculates the contrast ratio between two colors.
+ *
+ * Formula: https://www.w3.org/TR/WCAG20-TECHS/G17.html#G17-tests
+ *
+ * @param {string} foreground - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @param {string} background - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @returns {number} A contrast ratio value in the range 0 - 21.
+ */
+
+
+function getContrastRatio(foreground, background) {
+  var lumA = getLuminance(foreground);
+  var lumB = getLuminance(background);
+  return (Math.max(lumA, lumB) + 0.05) / (Math.min(lumA, lumB) + 0.05);
+}
+/**
+ * The relative brightness of any point in a color space,
+ * normalized to 0 for darkest black and 1 for lightest white.
+ *
+ * Formula: https://www.w3.org/TR/WCAG20-TECHS/G17.html#G17-tests
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @returns {number} The relative brightness of the color in the range 0 - 1
+ */
+
+
+function getLuminance(color) {
+  color = decomposeColor(color);
+  var rgb = color.type === 'hsl' ? decomposeColor(hslToRgb(color)).values : color.values;
+  rgb = rgb.map(function (val) {
+    val /= 255; // normalized
+
+    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+  }); // Truncate at 3 digits
+
+  return Number((0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]).toFixed(3));
+}
+/**
+ * Darken or lighten a color, depending on its luminance.
+ * Light colors are darkened, dark colors are lightened.
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @param {number} coefficient=0.15 - multiplier in the range 0 - 1
+ * @returns {string} A CSS color string. Hex input values are returned as rgb
+ */
+
+
+function emphasize(color) {
+  var coefficient = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0.15;
+  return getLuminance(color) > 0.5 ? darken(color, coefficient) : lighten(color, coefficient);
+}
+/**
+ * Set the absolute transparency of a color.
+ * Any existing alpha values are overwritten.
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @param {number} value - value to set the alpha channel to in the range 0 -1
+ * @returns {string} A CSS color string. Hex input values are returned as rgb
+ */
+
+
+function fade(color, value) {
+  color = decomposeColor(color);
+  value = clamp(value);
+
+  if (color.type === 'rgb' || color.type === 'hsl') {
+    color.type += 'a';
+  }
+
+  color.values[3] = value;
+  return recomposeColor(color);
+}
+/**
+ * Darkens a color.
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @param {number} coefficient - multiplier in the range 0 - 1
+ * @returns {string} A CSS color string. Hex input values are returned as rgb
+ */
+
+
+function darken(color, coefficient) {
+  color = decomposeColor(color);
+  coefficient = clamp(coefficient);
+
+  if (color.type.indexOf('hsl') !== -1) {
+    color.values[2] *= 1 - coefficient;
+  } else if (color.type.indexOf('rgb') !== -1) {
+    for (var i = 0; i < 3; i += 1) {
+      color.values[i] *= 1 - coefficient;
+    }
+  }
+
+  return recomposeColor(color);
+}
+/**
+ * Lightens a color.
+ *
+ * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+ * @param {number} coefficient - multiplier in the range 0 - 1
+ * @returns {string} A CSS color string. Hex input values are returned as rgb
+ */
+
+
+function lighten(color, coefficient) {
+  color = decomposeColor(color);
+  coefficient = clamp(coefficient);
+
+  if (color.type.indexOf('hsl') !== -1) {
+    color.values[2] += (100 - color.values[2]) * coefficient;
+  } else if (color.type.indexOf('rgb') !== -1) {
+    for (var i = 0; i < 3; i += 1) {
+      color.values[i] += (255 - color.values[i]) * coefficient;
+    }
+  }
+
+  return recomposeColor(color);
+}
+},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/node_modules/isobject/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = isObject;
+
+/*!
+ * isobject <https://github.com/jonschlinkert/isobject>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+function isObject(val) {
+  return val != null && typeof val === 'object' && Array.isArray(val) === false;
+}
+
+;
+},{}],"../node_modules/@material-ui/core/node_modules/is-plain-object/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = isPlainObject;
+
+var _isobject = _interopRequireDefault(require("isobject"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+function isObjectObject(o) {
+  return (0, _isobject.default)(o) === true && Object.prototype.toString.call(o) === '[object Object]';
+}
+
+function isPlainObject(o) {
+  var ctor, prot;
+  if (isObjectObject(o) === false) return false; // If has modified constructor
+
+  ctor = o.constructor;
+  if (typeof ctor !== 'function') return false; // If has modified prototype
+
+  prot = ctor.prototype;
+  if (isObjectObject(prot) === false) return false; // If constructor does not have an Object-specific method
+
+  if (prot.hasOwnProperty('isPrototypeOf') === false) {
+    return false;
+  } // Most likely a plain Object
+
+
+  return true;
+}
+
+;
+},{"isobject":"../node_modules/@material-ui/core/node_modules/isobject/index.js"}],"../node_modules/@material-ui/core/esm/styles/createBreakpoints.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createBreakpoints;
+exports.keys = void 0;
+
+var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
+
+var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Sorted ASC by size. That's important.
+// It can't be configured as it's used statically for propTypes.
+var keys = ['xs', 'sm', 'md', 'lg', 'xl']; // Keep in mind that @media is inclusive by the CSS specification.
+
+exports.keys = keys;
+
+function createBreakpoints(breakpoints) {
+  var _breakpoints$values = breakpoints.values,
+      values = _breakpoints$values === void 0 ? {
+    xs: 0,
+    sm: 600,
+    md: 960,
+    lg: 1280,
+    xl: 1920
+  } : _breakpoints$values,
+      _breakpoints$unit = breakpoints.unit,
+      unit = _breakpoints$unit === void 0 ? 'px' : _breakpoints$unit,
+      _breakpoints$step = breakpoints.step,
+      step = _breakpoints$step === void 0 ? 5 : _breakpoints$step,
+      other = (0, _objectWithoutProperties2.default)(breakpoints, ["values", "unit", "step"]);
+
+  function up(key) {
+    var value = typeof values[key] === 'number' ? values[key] : key;
+    return "@media (min-width:".concat(value).concat(unit, ")");
+  }
+
+  function down(key) {
+    var endIndex = keys.indexOf(key) + 1;
+    var upperbound = values[keys[endIndex]];
+
+    if (endIndex === keys.length) {
+      // xl down applies to all sizes
+      return up('xs');
+    }
+
+    var value = typeof upperbound === 'number' && endIndex > 0 ? upperbound : key;
+    return "@media (max-width:".concat(value - step / 100).concat(unit, ")");
+  }
+
+  function between(start, end) {
+    var endIndex = keys.indexOf(end) + 1;
+
+    if (endIndex === keys.length) {
+      return up(start);
+    }
+
+    return "@media (min-width:".concat(values[start]).concat(unit, ") and ") + "(max-width:".concat(values[keys[endIndex]] - step / 100).concat(unit, ")");
+  }
+
+  function only(key) {
+    return between(key, key);
+  }
+
+  function width(key) {
+    return values[key];
+  }
+
+  return (0, _extends2.default)({
+    keys: keys,
+    values: values,
+    up: up,
+    down: down,
+    between: between,
+    only: only,
+    width: width
+  }, other);
+}
+},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js"}],"../node_modules/@material-ui/core/esm/styles/createMixins.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createMixins;
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/defineProperty"));
+
+var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// import warning from 'warning';
+function createMixins(breakpoints, spacing, mixins) {
+  var _toolbar;
+
+  return (0, _extends2.default)({
+    gutters: function gutters() {
+      var styles = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {}; // To deprecate in v4.1
+      //       warning(
+      //         false,
+      //         [
+      //           'Material-UI: theme.mixins.gutters() is deprecated.',
+      //           'You can use the source of the mixin directly:',
+      //           `
+      // paddingLeft: theme.spacing(2),
+      // paddingRight: theme.spacing(2),
+      // [theme.breakpoints.up('sm')]: {
+      //   paddingLeft: theme.spacing(3),
+      //   paddingRight: theme.spacing(3),
+      // },
+      // `,
+      //         ].join('\n'),
+      //       );
+
+      return (0, _extends2.default)({
+        paddingLeft: spacing(2),
+        paddingRight: spacing(2)
+      }, styles, (0, _defineProperty2.default)({}, breakpoints.up('sm'), (0, _extends2.default)({
+        paddingLeft: spacing(3),
+        paddingRight: spacing(3)
+      }, styles[breakpoints.up('sm')])));
+    },
+    toolbar: (_toolbar = {
+      minHeight: 56
+    }, (0, _defineProperty2.default)(_toolbar, "".concat(breakpoints.up('xs'), " and (orientation: landscape)"), {
+      minHeight: 48
+    }), (0, _defineProperty2.default)(_toolbar, breakpoints.up('sm'), {
+      minHeight: 64
+    }), _toolbar)
+  }, mixins);
+}
+},{"@babel/runtime/helpers/esm/defineProperty":"../node_modules/@babel/runtime/helpers/esm/defineProperty.js","@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js"}],"../node_modules/@material-ui/core/esm/colors/indigo.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var indigo = {
+  50: '#e8eaf6',
+  100: '#c5cae9',
+  200: '#9fa8da',
+  300: '#7986cb',
+  400: '#5c6bc0',
+  500: '#3f51b5',
+  600: '#3949ab',
+  700: '#303f9f',
+  800: '#283593',
+  900: '#1a237e',
+  A100: '#8c9eff',
+  A200: '#536dfe',
+  A400: '#3d5afe',
+  A700: '#304ffe'
+};
+var _default = indigo;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/colors/pink.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var pink = {
+  50: '#fce4ec',
+  100: '#f8bbd0',
+  200: '#f48fb1',
+  300: '#f06292',
+  400: '#ec407a',
+  500: '#e91e63',
+  600: '#d81b60',
+  700: '#c2185b',
+  800: '#ad1457',
+  900: '#880e4f',
+  A100: '#ff80ab',
+  A200: '#ff4081',
+  A400: '#f50057',
+  A700: '#c51162'
+};
+var _default = pink;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/colors/grey.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var grey = {
+  50: '#fafafa',
+  100: '#f5f5f5',
+  200: '#eeeeee',
+  300: '#e0e0e0',
+  400: '#bdbdbd',
+  500: '#9e9e9e',
+  600: '#757575',
+  700: '#616161',
+  800: '#424242',
+  900: '#212121',
+  A100: '#d5d5d5',
+  A200: '#aaaaaa',
+  A400: '#303030',
+  A700: '#616161'
+};
+var _default = grey;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/colors/red.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var red = {
+  50: '#ffebee',
+  100: '#ffcdd2',
+  200: '#ef9a9a',
+  300: '#e57373',
+  400: '#ef5350',
+  500: '#f44336',
+  600: '#e53935',
+  700: '#d32f2f',
+  800: '#c62828',
+  900: '#b71c1c',
+  A100: '#ff8a80',
+  A200: '#ff5252',
+  A400: '#ff1744',
+  A700: '#d50000'
+};
+var _default = red;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/colors/common.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var common = {
+  black: '#000',
+  white: '#fff'
+};
+var _default = common;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/styles/createPalette.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createPalette;
+exports.dark = exports.light = void 0;
+
+var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
+
+var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
+
+var _warning = _interopRequireDefault(require("warning"));
+
+var _deepmerge = _interopRequireDefault(require("deepmerge"));
+
+var _indigo = _interopRequireDefault(require("../colors/indigo"));
+
+var _pink = _interopRequireDefault(require("../colors/pink"));
+
+var _grey = _interopRequireDefault(require("../colors/grey"));
+
+var _red = _interopRequireDefault(require("../colors/red"));
+
+var _common = _interopRequireDefault(require("../colors/common"));
+
+var _colorManipulator = require("./colorManipulator");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// < 1kb payload overhead when lodash/merge is > 3kb.
+var light = {
+  // The colors used to style the text.
+  text: {
+    // The most important text.
+    primary: 'rgba(0, 0, 0, 0.87)',
+    // Secondary text.
+    secondary: 'rgba(0, 0, 0, 0.54)',
+    // Disabled text have even lower visual prominence.
+    disabled: 'rgba(0, 0, 0, 0.38)',
+    // Text hints.
+    hint: 'rgba(0, 0, 0, 0.38)'
+  },
+  // The color used to divide different elements.
+  divider: 'rgba(0, 0, 0, 0.12)',
+  // The background colors used to style the surfaces.
+  // Consistency between these values is important.
+  background: {
+    paper: _common.default.white,
+    default: _grey.default[50]
+  },
+  // The colors used to style the action elements.
+  action: {
+    // The color of an active action like an icon button.
+    active: 'rgba(0, 0, 0, 0.54)',
+    // The color of an hovered action.
+    hover: 'rgba(0, 0, 0, 0.08)',
+    hoverOpacity: 0.08,
+    // The color of a selected action.
+    selected: 'rgba(0, 0, 0, 0.14)',
+    // The color of a disabled action.
+    disabled: 'rgba(0, 0, 0, 0.26)',
+    // The background color of a disabled action.
+    disabledBackground: 'rgba(0, 0, 0, 0.12)'
+  }
+};
+exports.light = light;
+var dark = {
+  text: {
+    primary: _common.default.white,
+    secondary: 'rgba(255, 255, 255, 0.7)',
+    disabled: 'rgba(255, 255, 255, 0.5)',
+    hint: 'rgba(255, 255, 255, 0.5)',
+    icon: 'rgba(255, 255, 255, 0.5)'
+  },
+  divider: 'rgba(255, 255, 255, 0.12)',
+  background: {
+    paper: _grey.default[800],
+    default: '#303030'
+  },
+  action: {
+    active: _common.default.white,
+    hover: 'rgba(255, 255, 255, 0.1)',
+    hoverOpacity: 0.1,
+    selected: 'rgba(255, 255, 255, 0.2)',
+    disabled: 'rgba(255, 255, 255, 0.3)',
+    disabledBackground: 'rgba(255, 255, 255, 0.12)'
+  }
+};
+exports.dark = dark;
+
+function addLightOrDark(intent, direction, shade, tonalOffset) {
+  if (!intent[direction]) {
+    if (intent.hasOwnProperty(shade)) {
+      intent[direction] = intent[shade];
+    } else if (direction === 'light') {
+      intent.light = (0, _colorManipulator.lighten)(intent.main, tonalOffset);
+    } else if (direction === 'dark') {
+      intent.dark = (0, _colorManipulator.darken)(intent.main, tonalOffset * 1.5);
+    }
+  }
+}
+
+function createPalette(palette) {
+  var _palette$primary = palette.primary,
+      primary = _palette$primary === void 0 ? {
+    light: _indigo.default[300],
+    main: _indigo.default[500],
+    dark: _indigo.default[700]
+  } : _palette$primary,
+      _palette$secondary = palette.secondary,
+      secondary = _palette$secondary === void 0 ? {
+    light: _pink.default.A200,
+    main: _pink.default.A400,
+    dark: _pink.default.A700
+  } : _palette$secondary,
+      _palette$error = palette.error,
+      error = _palette$error === void 0 ? {
+    light: _red.default[300],
+    main: _red.default[500],
+    dark: _red.default[700]
+  } : _palette$error,
+      _palette$type = palette.type,
+      type = _palette$type === void 0 ? 'light' : _palette$type,
+      _palette$contrastThre = palette.contrastThreshold,
+      contrastThreshold = _palette$contrastThre === void 0 ? 3 : _palette$contrastThre,
+      _palette$tonalOffset = palette.tonalOffset,
+      tonalOffset = _palette$tonalOffset === void 0 ? 0.2 : _palette$tonalOffset,
+      other = (0, _objectWithoutProperties2.default)(palette, ["primary", "secondary", "error", "type", "contrastThreshold", "tonalOffset"]); // Use the same logic as
+  // Bootstrap: https://github.com/twbs/bootstrap/blob/1d6e3710dd447de1a200f29e8fa521f8a0908f70/scss/_functions.scss#L59
+  // and material-components-web https://github.com/material-components/material-components-web/blob/ac46b8863c4dab9fc22c4c662dc6bd1b65dd652f/packages/mdc-theme/_functions.scss#L54
+
+  function getContrastText(background) {
+    "development" !== "production" ? (0, _warning.default)(background, "Material-UI: missing background argument in getContrastText(".concat(background, ").")) : void 0;
+    var contrastText = (0, _colorManipulator.getContrastRatio)(background, dark.text.primary) >= contrastThreshold ? dark.text.primary : light.text.primary;
+
+    if ("development" !== 'production') {
+      var contrast = (0, _colorManipulator.getContrastRatio)(background, contrastText);
+      "development" !== "production" ? (0, _warning.default)(contrast >= 3, ["Material-UI: the contrast ratio of ".concat(contrast, ":1 for ").concat(contrastText, " on ").concat(background), 'falls below the WACG recommended absolute minimum contrast ratio of 3:1.', 'https://www.w3.org/TR/2008/REC-WCAG20-20081211/#visual-audio-contrast-contrast'].join('\n')) : void 0;
+    }
+
+    return contrastText;
+  }
+
+  function augmentColor(color) {
+    var mainShade = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 500;
+    var lightShade = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 300;
+    var darkShade = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 700;
+    color = (0, _extends2.default)({}, color);
+
+    if (!color.main && color[mainShade]) {
+      color.main = color[mainShade];
+    }
+
+    if ("development" !== 'production' && !color.main) {
+      throw new Error(['Material-UI: the color provided to augmentColor(color) is invalid.', "The color object needs to have a `main` property or a `".concat(mainShade, "` property.")].join('\n'));
+    }
+
+    addLightOrDark(color, 'light', lightShade, tonalOffset);
+    addLightOrDark(color, 'dark', darkShade, tonalOffset);
+
+    if (!color.contrastText) {
+      color.contrastText = getContrastText(color.main);
+    }
+
+    return color;
+  }
+
+  var types = {
+    dark: dark,
+    light: light
+  };
+  "development" !== "production" ? (0, _warning.default)(types[type], "Material-UI: the palette type `".concat(type, "` is not supported.")) : void 0;
+  var paletteOutput = (0, _deepmerge.default)((0, _extends2.default)({
+    // A collection of common colors.
+    common: _common.default,
+    // The palette type, can be light or dark.
+    type: type,
+    // The colors used to represent primary interface elements for a user.
+    primary: augmentColor(primary),
+    // The colors used to represent secondary interface elements for a user.
+    secondary: augmentColor(secondary, 'A400', 'A200', 'A700'),
+    // The colors used to represent interface elements that the user should be made aware of.
+    error: augmentColor(error),
+    // The grey colors.
+    grey: _grey.default,
+    // Used by `getContrastText()` to maximize the contrast between the background and
+    // the text.
+    contrastThreshold: contrastThreshold,
+    // Take a background color and return the color of the text to maximize the contrast.
+    getContrastText: getContrastText,
+    // Generate a rich color object.
+    augmentColor: augmentColor,
+    // Used by the functions below to shift a color's luminance by approximately
+    // two indexes within its tonal palette.
+    // E.g., shift from Red 500 to Red 300 or Red 700.
+    tonalOffset: tonalOffset
+  }, types[type]), other, {
+    clone: false // No need to clone deep
+
+  });
+  return paletteOutput;
+}
+},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","warning":"../node_modules/warning/warning.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","../colors/indigo":"../node_modules/@material-ui/core/esm/colors/indigo.js","../colors/pink":"../node_modules/@material-ui/core/esm/colors/pink.js","../colors/grey":"../node_modules/@material-ui/core/esm/colors/grey.js","../colors/red":"../node_modules/@material-ui/core/esm/colors/red.js","../colors/common":"../node_modules/@material-ui/core/esm/colors/common.js","./colorManipulator":"../node_modules/@material-ui/core/esm/styles/colorManipulator.js"}],"../node_modules/@material-ui/core/esm/styles/createTypography.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createTypography;
+
+var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
+
+var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
+
+var _deepmerge = _interopRequireDefault(require("deepmerge"));
+
+var _warning = _interopRequireDefault(require("warning"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// < 1kb payload overhead when lodash/merge is > 3kb.
+function round(value) {
+  return Math.round(value * 1e5) / 1e5;
+}
+
+var caseAllCaps = {
+  textTransform: 'uppercase'
+};
+var defaultFontFamily = '"Roboto", "Helvetica", "Arial", sans-serif';
+/**
+ * @see @link{https://material.io/design/typography/the-type-system.html}
+ * @see @link{https://material.io/design/typography/understanding-typography.html}
+ */
+
+function createTypography(palette, typography) {
+  var _ref = typeof typography === 'function' ? typography(palette) : typography,
+      _ref$fontFamily = _ref.fontFamily,
+      fontFamily = _ref$fontFamily === void 0 ? defaultFontFamily : _ref$fontFamily,
+      _ref$fontSize = _ref.fontSize,
+      fontSize = _ref$fontSize === void 0 ? 14 : _ref$fontSize,
+      _ref$fontWeightLight = _ref.fontWeightLight,
+      fontWeightLight = _ref$fontWeightLight === void 0 ? 300 : _ref$fontWeightLight,
+      _ref$fontWeightRegula = _ref.fontWeightRegular,
+      fontWeightRegular = _ref$fontWeightRegula === void 0 ? 400 : _ref$fontWeightRegula,
+      _ref$fontWeightMedium = _ref.fontWeightMedium,
+      fontWeightMedium = _ref$fontWeightMedium === void 0 ? 500 : _ref$fontWeightMedium,
+      _ref$fontWeightBold = _ref.fontWeightBold,
+      fontWeightBold = _ref$fontWeightBold === void 0 ? 700 : _ref$fontWeightBold,
+      _ref$htmlFontSize = _ref.htmlFontSize,
+      htmlFontSize = _ref$htmlFontSize === void 0 ? 16 : _ref$htmlFontSize,
+      allVariants = _ref.allVariants,
+      other = (0, _objectWithoutProperties2.default)(_ref, ["fontFamily", "fontSize", "fontWeightLight", "fontWeightRegular", "fontWeightMedium", "fontWeightBold", "htmlFontSize", "allVariants"]);
+
+  "development" !== "production" ? (0, _warning.default)(typeof fontSize === 'number', "Material-UI: 'fontSize' is required to be a number.") : void 0;
+  "development" !== "production" ? (0, _warning.default)(typeof htmlFontSize === 'number', "Material-UI: 'htmlFontSize' is required to be a number.") : void 0;
+  var coef = fontSize / 14;
+
+  var pxToRem = function pxToRem(size) {
+    return "".concat(size / htmlFontSize * coef, "rem");
+  };
+
+  var buildVariant = function buildVariant(fontWeight, size, lineHeight, letterSpacing, casing) {
+    return (0, _extends2.default)({
+      fontFamily: fontFamily,
+      fontWeight: fontWeight,
+      fontSize: pxToRem(size),
+      // Unitless following https://meyerweb.com/eric/thoughts/2006/02/08/unitless-line-heights/
+      lineHeight: lineHeight
+    }, fontFamily === defaultFontFamily ? {
+      letterSpacing: "".concat(round(letterSpacing / size), "em")
+    } : {}, {}, casing, {}, allVariants);
+  };
+
+  var variants = {
+    h1: buildVariant(fontWeightLight, 96, 1, -1.5),
+    h2: buildVariant(fontWeightLight, 60, 1, -0.5),
+    h3: buildVariant(fontWeightRegular, 48, 1.04, 0),
+    h4: buildVariant(fontWeightRegular, 34, 1.17, 0.25),
+    h5: buildVariant(fontWeightRegular, 24, 1.33, 0),
+    h6: buildVariant(fontWeightMedium, 20, 1.6, 0.15),
+    subtitle1: buildVariant(fontWeightRegular, 16, 1.75, 0.15),
+    subtitle2: buildVariant(fontWeightMedium, 14, 1.57, 0.1),
+    body1: buildVariant(fontWeightRegular, 16, 1.5, 0.15),
+    body2: buildVariant(fontWeightRegular, 14, 1.43, 0.15),
+    button: buildVariant(fontWeightMedium, 14, 1.75, 0.4, caseAllCaps),
+    caption: buildVariant(fontWeightRegular, 12, 1.66, 0.4),
+    overline: buildVariant(fontWeightRegular, 12, 2.66, 1, caseAllCaps)
+  };
+  return (0, _deepmerge.default)((0, _extends2.default)({
+    htmlFontSize: htmlFontSize,
+    pxToRem: pxToRem,
+    round: round,
+    fontFamily: fontFamily,
+    fontSize: fontSize,
+    fontWeightLight: fontWeightLight,
+    fontWeightRegular: fontWeightRegular,
+    fontWeightMedium: fontWeightMedium,
+    fontWeightBold: fontWeightBold
+  }, variants), other, {
+    clone: false // No need to clone deep
+
+  });
+}
+},{"@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/shadows.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var shadowKeyUmbraOpacity = 0.2;
+var shadowKeyPenumbraOpacity = 0.14;
+var shadowAmbientShadowOpacity = 0.12;
+
+function createShadow() {
+  return ["".concat(arguments.length <= 0 ? undefined : arguments[0], "px ").concat(arguments.length <= 1 ? undefined : arguments[1], "px ").concat(arguments.length <= 2 ? undefined : arguments[2], "px ").concat(arguments.length <= 3 ? undefined : arguments[3], "px rgba(0,0,0,").concat(shadowKeyUmbraOpacity, ")"), "".concat(arguments.length <= 4 ? undefined : arguments[4], "px ").concat(arguments.length <= 5 ? undefined : arguments[5], "px ").concat(arguments.length <= 6 ? undefined : arguments[6], "px ").concat(arguments.length <= 7 ? undefined : arguments[7], "px rgba(0,0,0,").concat(shadowKeyPenumbraOpacity, ")"), "".concat(arguments.length <= 8 ? undefined : arguments[8], "px ").concat(arguments.length <= 9 ? undefined : arguments[9], "px ").concat(arguments.length <= 10 ? undefined : arguments[10], "px ").concat(arguments.length <= 11 ? undefined : arguments[11], "px rgba(0,0,0,").concat(shadowAmbientShadowOpacity, ")")].join(',');
+}
+
+var shadows = ['none', createShadow(0, 1, 3, 0, 0, 1, 1, 0, 0, 2, 1, -1), createShadow(0, 1, 5, 0, 0, 2, 2, 0, 0, 3, 1, -2), createShadow(0, 1, 8, 0, 0, 3, 4, 0, 0, 3, 3, -2), createShadow(0, 2, 4, -1, 0, 4, 5, 0, 0, 1, 10, 0), createShadow(0, 3, 5, -1, 0, 5, 8, 0, 0, 1, 14, 0), createShadow(0, 3, 5, -1, 0, 6, 10, 0, 0, 1, 18, 0), createShadow(0, 4, 5, -2, 0, 7, 10, 1, 0, 2, 16, 1), createShadow(0, 5, 5, -3, 0, 8, 10, 1, 0, 3, 14, 2), createShadow(0, 5, 6, -3, 0, 9, 12, 1, 0, 3, 16, 2), createShadow(0, 6, 6, -3, 0, 10, 14, 1, 0, 4, 18, 3), createShadow(0, 6, 7, -4, 0, 11, 15, 1, 0, 4, 20, 3), createShadow(0, 7, 8, -4, 0, 12, 17, 2, 0, 5, 22, 4), createShadow(0, 7, 8, -4, 0, 13, 19, 2, 0, 5, 24, 4), createShadow(0, 7, 9, -4, 0, 14, 21, 2, 0, 5, 26, 4), createShadow(0, 8, 9, -5, 0, 15, 22, 2, 0, 6, 28, 5), createShadow(0, 8, 10, -5, 0, 16, 24, 2, 0, 6, 30, 5), createShadow(0, 8, 11, -5, 0, 17, 26, 2, 0, 6, 32, 5), createShadow(0, 9, 11, -5, 0, 18, 28, 2, 0, 7, 34, 6), createShadow(0, 9, 12, -6, 0, 19, 29, 2, 0, 7, 36, 6), createShadow(0, 10, 13, -6, 0, 20, 31, 3, 0, 8, 38, 7), createShadow(0, 10, 13, -6, 0, 21, 33, 3, 0, 8, 40, 7), createShadow(0, 10, 14, -6, 0, 22, 35, 3, 0, 8, 42, 7), createShadow(0, 11, 14, -7, 0, 23, 36, 3, 0, 9, 44, 8), createShadow(0, 11, 15, -7, 0, 24, 38, 3, 0, 9, 46, 8)];
+var _default = shadows;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/styles/shape.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var shape = {
+  borderRadius: 4
+};
+var _default = shape;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/styles/createSpacing.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createSpacing;
+
+var _warning = _interopRequireDefault(require("warning"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var warnOnce;
+
+function createSpacing() {
+  var spacingInput = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 8; // Already transformed.
+
+  if (spacingInput.mui) {
+    return spacingInput;
+  } // All components align to an 8dp square baseline grid for mobile, tablet, and desktop.
+  // https://material.io/design/layout/understanding-layout.html#pixel-density
+
+
+  var transform;
+
+  if (typeof spacingInput === 'function') {
+    transform = spacingInput;
+  } else {
+    "development" !== "production" ? (0, _warning.default)(typeof spacingInput === 'number', ["Material-UI: the `theme.spacing` value (".concat(spacingInput, ") is invalid."), 'It should be a number or a function.'].join('\n')) : void 0;
+
+    transform = function transform(factor) {
+      "development" !== "production" ? (0, _warning.default)(typeof factor === 'number', "Expected spacing argument to be a number, got ".concat(factor)) : void 0;
+      return spacingInput * factor;
+    };
+  }
+
+  var spacing = function spacing() {
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+
+    "development" !== "production" ? (0, _warning.default)(args.length <= 4, "Material-UI: Too many arguments provided, expected between 0 and 4, got ".concat(args.length)) : void 0;
+
+    if (args.length === 0) {
+      return transform(1);
+    }
+
+    if (args.length === 1) {
+      return transform(args[0]);
+    }
+
+    return args.map(function (factor) {
+      var output = transform(factor);
+      return typeof output === 'number' ? "".concat(output, "px") : output;
+    }).join(' ');
+  }; // Backward compatibility, to remove in v5.
+
+
+  Object.defineProperty(spacing, 'unit', {
+    get: function get() {
+      if ("development" !== 'production') {
+        "development" !== "production" ? (0, _warning.default)(warnOnce && "development" !== 'test', ['Material-UI: theme.spacing.unit usage has been deprecated.', 'It will be removed in v5.', 'You can replace `theme.spacing.unit * y` with `theme.spacing(y)`.', '', 'You can use the `https://github.com/mui-org/material-ui/tree/master/packages/material-ui-codemod/README.md#theme-spacing-api` migration helper to make the process smoother.'].join('\n')) : void 0;
+        warnOnce = true;
+      }
+
+      return spacingInput;
+    }
+  });
+  spacing.mui = true;
+  return spacing;
+}
+},{"warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/transitions.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = exports.isNumber = exports.isString = exports.formatMs = exports.duration = exports.easing = void 0;
+
+var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
+
+var _warning = _interopRequireDefault(require("warning"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/* eslint-disable no-restricted-globals */
+// Follow https://material.google.com/motion/duration-easing.html#duration-easing-natural-easing-curves
+// to learn the context in which each easing should be used.
+var easing = {
+  // This is the most common easing curve.
+  easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  // Objects enter the screen at full velocity from off-screen and
+  // slowly decelerate to a resting point.
+  easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',
+  // Objects leave the screen at full velocity. They do not decelerate when off-screen.
+  easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+  // The sharp curve is used by objects that may return to the screen at any time.
+  sharp: 'cubic-bezier(0.4, 0, 0.6, 1)'
+}; // Follow https://material.io/guidelines/motion/duration-easing.html#duration-easing-common-durations
+// to learn when use what timing
+
+exports.easing = easing;
+var duration = {
+  shortest: 150,
+  shorter: 200,
+  short: 250,
+  // most basic recommended timing
+  standard: 300,
+  // this is to be used in complex animations
+  complex: 375,
+  // recommended when something is entering screen
+  enteringScreen: 225,
+  // recommended when something is leaving screen
+  leavingScreen: 195
+};
+exports.duration = duration;
+
+var formatMs = function formatMs(milliseconds) {
+  return "".concat(Math.round(milliseconds), "ms");
+};
+
+exports.formatMs = formatMs;
+
+var isString = function isString(value) {
+  return typeof value === 'string';
+};
+
+exports.isString = isString;
+
+var isNumber = function isNumber(value) {
+  return !isNaN(parseFloat(value));
+};
+/**
+ * @param {string|Array} props
+ * @param {object} param
+ * @param {string} param.prop
+ * @param {number} param.duration
+ * @param {string} param.easing
+ * @param {number} param.delay
+ */
+
+
+exports.isNumber = isNumber;
+var _default = {
+  easing: easing,
+  duration: duration,
+  create: function create() {
+    var props = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : ['all'];
+    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var _options$duration = options.duration,
+        durationOption = _options$duration === void 0 ? duration.standard : _options$duration,
+        _options$easing = options.easing,
+        easingOption = _options$easing === void 0 ? easing.easeInOut : _options$easing,
+        _options$delay = options.delay,
+        delay = _options$delay === void 0 ? 0 : _options$delay,
+        other = (0, _objectWithoutProperties2.default)(options, ["duration", "easing", "delay"]);
+    "development" !== "production" ? (0, _warning.default)(isString(props) || Array.isArray(props), 'Material-UI: argument "props" must be a string or Array.') : void 0;
+    "development" !== "production" ? (0, _warning.default)(isNumber(durationOption) || isString(durationOption), "Material-UI: argument \"duration\" must be a number or a string but found ".concat(durationOption, ".")) : void 0;
+    "development" !== "production" ? (0, _warning.default)(isString(easingOption), 'Material-UI: argument "easing" must be a string.') : void 0;
+    "development" !== "production" ? (0, _warning.default)(isNumber(delay) || isString(delay), 'Material-UI: argument "delay" must be a number or a string.') : void 0;
+    "development" !== "production" ? (0, _warning.default)(Object.keys(other).length === 0, "Material-UI: unrecognized argument(s) [".concat(Object.keys(other).join(','), "]")) : void 0;
+    return (Array.isArray(props) ? props : [props]).map(function (animatedProp) {
+      return "".concat(animatedProp, " ").concat(typeof durationOption === 'string' ? durationOption : formatMs(durationOption), " ").concat(easingOption, " ").concat(typeof delay === 'string' ? delay : formatMs(delay));
+    }).join(',');
+  },
+  getAutoHeightDuration: function getAutoHeightDuration(height) {
+    if (!height) {
+      return 0;
+    }
+
+    var constant = height / 36; // https://www.wolframalpha.com/input/?i=(4+%2B+15+*+(x+%2F+36+)+**+0.25+%2B+(x+%2F+36)+%2F+5)+*+10
+
+    return Math.round((4 + 15 * Math.pow(constant, 0.25) + constant / 5) * 10);
+  }
+};
+exports.default = _default;
+},{"@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","warning":"../node_modules/warning/warning.js"}],"../node_modules/@material-ui/core/esm/styles/zIndex.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+// We need to centralize the zIndex definitions as they work
+// like global values in the browser.
+var zIndex = {
+  mobileStepper: 1000,
+  appBar: 1100,
+  drawer: 1200,
+  modal: 1300,
+  snackbar: 1400,
+  tooltip: 1500
+};
+var _default = zIndex;
+exports.default = _default;
+},{}],"../node_modules/@material-ui/core/esm/styles/createMuiTheme.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/defineProperty"));
+
+var _extends2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/extends"));
+
+var _objectWithoutProperties2 = _interopRequireDefault(require("@babel/runtime/helpers/esm/objectWithoutProperties"));
+
+var _deepmerge = _interopRequireDefault(require("deepmerge"));
+
+var _isPlainObject = _interopRequireDefault(require("is-plain-object"));
+
+var _warning = _interopRequireDefault(require("warning"));
+
+var _createBreakpoints = _interopRequireDefault(require("./createBreakpoints"));
+
+var _createMixins = _interopRequireDefault(require("./createMixins"));
+
+var _createPalette = _interopRequireDefault(require("./createPalette"));
+
+var _createTypography = _interopRequireDefault(require("./createTypography"));
+
+var _shadows = _interopRequireDefault(require("./shadows"));
+
+var _shape = _interopRequireDefault(require("./shape"));
+
+var _createSpacing = _interopRequireDefault(require("./createSpacing"));
+
+var _transitions = _interopRequireDefault(require("./transitions"));
+
+var _zIndex = _interopRequireDefault(require("./zIndex"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// < 1kb payload overhead when lodash/merge is > 3kb.
+function createMuiTheme() {
+  var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  var _options$breakpoints = options.breakpoints,
+      breakpointsInput = _options$breakpoints === void 0 ? {} : _options$breakpoints,
+      _options$mixins = options.mixins,
+      mixinsInput = _options$mixins === void 0 ? {} : _options$mixins,
+      _options$palette = options.palette,
+      paletteInput = _options$palette === void 0 ? {} : _options$palette,
+      shadowsInput = options.shadows,
+      spacingInput = options.spacing,
+      _options$typography = options.typography,
+      typographyInput = _options$typography === void 0 ? {} : _options$typography,
+      other = (0, _objectWithoutProperties2.default)(options, ["breakpoints", "mixins", "palette", "shadows", "spacing", "typography"]);
+  var palette = (0, _createPalette.default)(paletteInput);
+  var breakpoints = (0, _createBreakpoints.default)(breakpointsInput);
+  var spacing = (0, _createSpacing.default)(spacingInput);
+  var muiTheme = (0, _extends2.default)({
+    breakpoints: breakpoints,
+    direction: 'ltr',
+    mixins: (0, _createMixins.default)(breakpoints, spacing, mixinsInput),
+    overrides: {},
+    // Inject custom styles
+    palette: palette,
+    props: {},
+    // Inject custom props
+    shadows: shadowsInput || _shadows.default,
+    typography: (0, _createTypography.default)(palette, typographyInput),
+    spacing: spacing
+  }, (0, _deepmerge.default)({
+    shape: _shape.default,
+    transitions: _transitions.default,
+    zIndex: _zIndex.default
+  }, other, {
+    isMergeableObject: _isPlainObject.default
+  }));
+
+  if ("development" !== 'production') {
+    var pseudoClasses = ['checked', 'disabled', 'error', 'focused', 'focusVisible', 'required', 'expanded', 'selected'];
+
+    var traverse = function traverse(node, parentKey) {
+      var depth = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
+      var key; // eslint-disable-next-line guard-for-in, no-restricted-syntax
+
+      for (key in node) {
+        var child = node[key];
+
+        if (depth === 1) {
+          if (key.indexOf('Mui') === 0 && child) {
+            traverse(child, key, depth + 1);
+          }
+        } else if (pseudoClasses.indexOf(key) !== -1 && Object.keys(child).length > 0) {
+          "development" !== "production" ? (0, _warning.default)(false, ["Material-UI: the `".concat(parentKey, "` component increases ") + "the CSS specificity of the `".concat(key, "` internal state."), 'You can not override it like this: ', JSON.stringify(node, null, 2), '', 'Instead, you need to use the $ruleName syntax:', JSON.stringify({
+            root: (0, _defineProperty2.default)({}, "&$".concat(key), child)
+          }, null, 2), '', 'https://material-ui.com/r/pseudo-classes-guide'].join('\n')) : void 0; // Remove the style to prevent global conflicts.
+
+          node[key] = {};
+        }
+      }
+    };
+
+    traverse(muiTheme.overrides);
+  }
+
+  "development" !== "production" ? (0, _warning.default)(muiTheme.shadows.length === 25, 'Material-UI: the shadows array provided to createMuiTheme should support 25 elevations.') : void 0;
+  return muiTheme;
+}
+
+var _default = createMuiTheme;
+exports.default = _default;
+},{"@babel/runtime/helpers/esm/defineProperty":"../node_modules/@babel/runtime/helpers/esm/defineProperty.js","@babel/runtime/helpers/esm/extends":"../node_modules/@babel/runtime/helpers/esm/extends.js","@babel/runtime/helpers/esm/objectWithoutProperties":"../node_modules/@babel/runtime/helpers/esm/objectWithoutProperties.js","deepmerge":"../node_modules/deepmerge/dist/cjs.js","is-plain-object":"../node_modules/@material-ui/core/node_modules/is-plain-object/index.js","warning":"../node_modules/warning/warning.js","./createBreakpoints":"../node_modules/@material-ui/core/esm/styles/createBreakpoints.js","./createMixins":"../node_modules/@material-ui/core/esm/styles/createMixins.js","./createPalette":"../node_modules/@material-ui/core/esm/styles/createPalette.js","./createTypography":"../node_modules/@material-ui/core/esm/styles/createTypography.js","./shadows":"../node_modules/@material-ui/core/esm/styles/shadows.js","./shape":"../node_modules/@material-ui/core/esm/styles/shape.js","./createSpacing":"../node_modules/@material-ui/core/esm/styles/createSpacing.js","./transitions":"../node_modules/@material-ui/core/esm/styles/transitions.js","./zIndex":"../node_modules/@material-ui/core/esm/styles/zIndex.js"}],"../node_modules/@material-ui/core/esm/styles/createStyles.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -46278,624 +46293,7 @@ function addDays(dirtyDate, dirtyAmount) {
   date.setDate(date.getDate() + amount);
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/addMilliseconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addMilliseconds;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name addMilliseconds
- * @category Millisecond Helpers
- * @summary Add the specified number of milliseconds to the given date.
- *
- * @description
- * Add the specified number of milliseconds to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of milliseconds to be added
- * @returns {Date} the new date with the milliseconds added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 750 milliseconds to 10 July 2014 12:45:30.000:
- * var result = addMilliseconds(new Date(2014, 6, 10, 12, 45, 30, 0), 750)
- * //=> Thu Jul 10 2014 12:45:30.750
- */
-function addMilliseconds(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var timestamp = (0, _index2.default)(dirtyDate).getTime();
-  var amount = (0, _index.default)(dirtyAmount);
-  return new Date(timestamp + amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/addHours/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addHours;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_HOUR = 3600000;
-/**
- * @name addHours
- * @category Hour Helpers
- * @summary Add the specified number of hours to the given date.
- *
- * @description
- * Add the specified number of hours to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of hours to be added
- * @returns {Date} the new date with the hours added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 2 hours to 10 July 2014 23:00:00:
- * var result = addHours(new Date(2014, 6, 10, 23, 0), 2)
- * //=> Fri Jul 11 2014 01:00:00
- */
-
-function addHours(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, amount * MILLISECONDS_IN_HOUR);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMilliseconds/index.js":"../node_modules/date-fns/esm/addMilliseconds/index.js"}],"../node_modules/date-fns/esm/startOfWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfWeek;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfWeek
- * @category Week Helpers
- * @summary Return the start of a week for the given date.
- *
- * @description
- * Return the start of a week for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Date} the start of a week
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // The start of a week for 2 September 2014 11:55:00:
- * var result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Sun Aug 31 2014 00:00:00
- *
- * @example
- * // If the week starts on Monday, the start of the week for 2 September 2014 11:55:00:
- * var result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
- * //=> Mon Sep 01 2014 00:00:00
- */
-function startOfWeek(dirtyDate, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeWeekStartsOn = locale && locale.options && locale.options.weekStartsOn;
-  var defaultWeekStartsOn = localeWeekStartsOn == null ? 0 : (0, _index.default)(localeWeekStartsOn);
-  var weekStartsOn = options.weekStartsOn == null ? defaultWeekStartsOn : (0, _index.default)(options.weekStartsOn); // Test if weekStartsOn is between 0 and 6 _and_ is not NaN
-
-  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
-    throw new RangeError('weekStartsOn must be between 0 and 6 inclusively');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var day = date.getDay();
-  var diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
-  date.setDate(date.getDate() - diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfISOWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfISOWeek;
-
-var _index = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfISOWeek
- * @category ISO Week Helpers
- * @summary Return the start of an ISO week for the given date.
- *
- * @description
- * Return the start of an ISO week for the given date.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of an ISO week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of an ISO week for 2 September 2014 11:55:00:
- * var result = startOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Mon Sep 01 2014 00:00:00
- */
-function startOfISOWeek(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate, {
-    weekStartsOn: 1
-  });
-}
-},{"../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js"}],"../node_modules/date-fns/esm/getISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getISOWeekYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Get the ISO week-numbering year of the given date.
- *
- * @description
- * Get the ISO week-numbering year of the given date,
- * which always starts 3 days before the year's first Thursday.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `getISOYear` to `getISOWeekYear`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `getWeekYear`.
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the ISO week-numbering year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which ISO-week numbering year is 2 January 2005?
- * var result = getISOWeekYear(new Date(2005, 0, 2))
- * //=> 2004
- */
-function getISOWeekYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  var fourthOfJanuaryOfNextYear = new Date(0);
-  fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
-  fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
-  var startOfNextYear = (0, _index2.default)(fourthOfJanuaryOfNextYear);
-  var fourthOfJanuaryOfThisYear = new Date(0);
-  fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
-  fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
-  var startOfThisYear = (0, _index2.default)(fourthOfJanuaryOfThisYear);
-
-  if (date.getTime() >= startOfNextYear.getTime()) {
-    return year + 1;
-  } else if (date.getTime() >= startOfThisYear.getTime()) {
-    return year;
-  } else {
-    return year - 1;
-  }
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js"}],"../node_modules/date-fns/esm/startOfISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfISOWeekYear;
-
-var _index = _interopRequireDefault(require("../getISOWeekYear/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Return the start of an ISO week-numbering year for the given date.
- *
- * @description
- * Return the start of an ISO week-numbering year,
- * which always starts 3 days before the year's first Thursday.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of an ISO week-numbering year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of an ISO week-numbering year for 2 July 2005:
- * var result = startOfISOWeekYear(new Date(2005, 6, 2))
- * //=> Mon Jan 03 2005 00:00:00
- */
-function startOfISOWeekYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var year = (0, _index.default)(dirtyDate);
-  var fourthOfJanuary = new Date(0);
-  fourthOfJanuary.setFullYear(year, 0, 4);
-  fourthOfJanuary.setHours(0, 0, 0, 0);
-  var date = (0, _index2.default)(fourthOfJanuary);
-  return date;
-}
-},{"../getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js"}],"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getTimezoneOffsetInMilliseconds;
-var MILLISECONDS_IN_MINUTE = 60000;
-/**
- * Google Chrome as of 67.0.3396.87 introduced timezones with offset that includes seconds.
- * They usually appear for dates that denote time before the timezones were introduced
- * (e.g. for 'Europe/Prague' timezone the offset is GMT+00:57:44 before 1 October 1891
- * and GMT+01:00:00 after that date)
- *
- * Date#getTimezoneOffset returns the offset in minutes and would return 57 for the example above,
- * which would lead to incorrect calculations.
- *
- * This function returns the timezone offset in milliseconds that takes seconds in account.
- */
-
-function getTimezoneOffsetInMilliseconds(dirtyDate) {
-  var date = new Date(dirtyDate.getTime());
-  var baseTimezoneOffset = date.getTimezoneOffset();
-  date.setSeconds(0, 0);
-  var millisecondsPartOfTimezoneOffset = date.getTime() % MILLISECONDS_IN_MINUTE;
-  return baseTimezoneOffset * MILLISECONDS_IN_MINUTE + millisecondsPartOfTimezoneOffset;
-}
-},{}],"../node_modules/date-fns/esm/startOfDay/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfDay;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfDay
- * @category Day Helpers
- * @summary Return the start of a day for the given date.
- *
- * @description
- * Return the start of a day for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a day
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a day for 2 September 2014 11:55:00:
- * var result = startOfDay(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Sep 02 2014 00:00:00
- */
-function startOfDay(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarDays/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarDays;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfDay/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_DAY = 86400000;
-/**
- * @name differenceInCalendarDays
- * @category Day Helpers
- * @summary Get the number of calendar days between the given dates.
- *
- * @description
- * Get the number of calendar days between the given dates. This means that the times are removed
- * from the dates and then the difference in days is calculated.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar days
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar days are between
- * // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
- * var result = differenceInCalendarDays(
- *   new Date(2012, 6, 2, 0, 0),
- *   new Date(2011, 6, 2, 23, 0)
- * )
- * //=> 366
- * // How many calendar days are between
- * // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
- * var result = differenceInCalendarDays(
- *   new Date(2011, 6, 2, 0, 1),
- *   new Date(2011, 6, 2, 23, 59)
- * )
- * //=> 1
- */
-
-function differenceInCalendarDays(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var startOfDayLeft = (0, _index2.default)(dirtyDateLeft);
-  var startOfDayRight = (0, _index2.default)(dirtyDateRight);
-  var timestampLeft = startOfDayLeft.getTime() - (0, _index.default)(startOfDayLeft);
-  var timestampRight = startOfDayRight.getTime() - (0, _index.default)(startOfDayRight); // Round the number of days to the nearest integer
-  // because the number of milliseconds in a day is not constant
-  // (e.g. it's different in the day of the daylight saving time clock shift)
-
-  return Math.round((timestampLeft - timestampRight) / MILLISECONDS_IN_DAY);
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../startOfDay/index.js":"../node_modules/date-fns/esm/startOfDay/index.js"}],"../node_modules/date-fns/esm/setISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setISOWeekYear;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfISOWeekYear/index.js"));
-
-var _index4 = _interopRequireDefault(require("../differenceInCalendarDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Set the ISO week-numbering year to the given date.
- *
- * @description
- * Set the ISO week-numbering year to the given date,
- * saving the week number and the weekday number.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `setISOYear` to `setISOWeekYear`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `setWeekYear`.
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} isoWeekYear - the ISO week-numbering year of the new date
- * @returns {Date} the new date with the ISO week-numbering year set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set ISO week-numbering year 2007 to 29 December 2008:
- * var result = setISOWeekYear(new Date(2008, 11, 29), 2007)
- * //=> Mon Jan 01 2007 00:00:00
- */
-function setISOWeekYear(dirtyDate, dirtyISOWeekYear) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var isoWeekYear = (0, _index.default)(dirtyISOWeekYear);
-  var diff = (0, _index4.default)(date, (0, _index3.default)(date));
-  var fourthOfJanuary = new Date(0);
-  fourthOfJanuary.setFullYear(isoWeekYear, 0, 4);
-  fourthOfJanuary.setHours(0, 0, 0, 0);
-  date = (0, _index3.default)(fourthOfJanuary);
-  date.setDate(date.getDate() + diff);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfISOWeekYear/index.js":"../node_modules/date-fns/esm/startOfISOWeekYear/index.js","../differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js"}],"../node_modules/date-fns/esm/addISOWeekYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addISOWeekYears;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../getISOWeekYear/index.js"));
-
-var _index3 = _interopRequireDefault(require("../setISOWeekYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name addISOWeekYears
- * @category ISO Week-Numbering Year Helpers
- * @summary Add the specified number of ISO week-numbering years to the given date.
- *
- * @description
- * Add the specified number of ISO week-numbering years to the given date.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `addISOYears` to `addISOWeekYears`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `addWeekYears`.
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of ISO week-numbering years to be added
- * @returns {Date} the new date with the ISO week-numbering years added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 5 ISO week-numbering years to 2 July 2010:
- * var result = addISOWeekYears(new Date(2010, 6, 2), 5)
- * //=> Fri Jun 26 2015 00:00:00
- */
-function addISOWeekYears(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index3.default)(dirtyDate, (0, _index2.default)(dirtyDate) + amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js","../setISOWeekYear/index.js":"../node_modules/date-fns/esm/setISOWeekYear/index.js"}],"../node_modules/date-fns/esm/addMinutes/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addMinutes;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_MINUTE = 60000;
-/**
- * @name addMinutes
- * @category Minute Helpers
- * @summary Add the specified number of minutes to the given date.
- *
- * @description
- * Add the specified number of minutes to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of minutes to be added
- * @returns {Date} the new date with the minutes added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 30 minutes to 10 July 2014 12:00:00:
- * var result = addMinutes(new Date(2014, 6, 10, 12, 0), 30)
- * //=> Thu Jul 10 2014 12:30:00
- */
-
-function addMinutes(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, amount * MILLISECONDS_IN_MINUTE);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMilliseconds/index.js":"../node_modules/date-fns/esm/addMilliseconds/index.js"}],"../node_modules/date-fns/esm/getDaysInMonth/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getDaysInMonth/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -46996,141 +46394,7 @@ function addMonths(dirtyDate, dirtyAmount) {
   date.setMonth(desiredMonth, Math.min(daysInMonth, date.getDate()));
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getDaysInMonth/index.js":"../node_modules/date-fns/esm/getDaysInMonth/index.js"}],"../node_modules/date-fns/esm/addQuarters/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addQuarters;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMonths/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name addQuarters
- * @category Quarter Helpers
- * @summary Add the specified number of year quarters to the given date.
- *
- * @description
- * Add the specified number of year quarters to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of quarters to be added
- * @returns {Date} the new date with the quarters added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 1 quarter to 1 September 2014:
- * var result = addQuarters(new Date(2014, 8, 1), 1)
- * //=> Mon Dec 01 2014 00:00:00
- */
-function addQuarters(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  var months = amount * 3;
-  return (0, _index2.default)(dirtyDate, months);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMonths/index.js":"../node_modules/date-fns/esm/addMonths/index.js"}],"../node_modules/date-fns/esm/addSeconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addSeconds;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name addSeconds
- * @category Second Helpers
- * @summary Add the specified number of seconds to the given date.
- *
- * @description
- * Add the specified number of seconds to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of seconds to be added
- * @returns {Date} the new date with the seconds added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 30 seconds to 10 July 2014 12:45:00:
- * var result = addSeconds(new Date(2014, 6, 10, 12, 45, 0), 30)
- * //=> Thu Jul 10 2014 12:45:30
- */
-function addSeconds(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, amount * 1000);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMilliseconds/index.js":"../node_modules/date-fns/esm/addMilliseconds/index.js"}],"../node_modules/date-fns/esm/addWeeks/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = addWeeks;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name addWeeks
- * @category Week Helpers
- * @summary Add the specified number of weeks to the given date.
- *
- * @description
- * Add the specified number of week to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of weeks to be added
- * @returns {Date} the new date with the weeks added
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Add 4 weeks to 1 September 2014:
- * var result = addWeeks(new Date(2014, 8, 1), 4)
- * //=> Mon Sep 29 2014 00:00:00
- */
-function addWeeks(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  var days = amount * 7;
-  return (0, _index2.default)(dirtyDate, days);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addDays/index.js":"../node_modules/date-fns/esm/addDays/index.js"}],"../node_modules/date-fns/esm/addYears/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getDaysInMonth/index.js":"../node_modules/date-fns/esm/getDaysInMonth/index.js"}],"../node_modules/date-fns/esm/addYears/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -47174,829 +46438,7 @@ function addYears(dirtyDate, dirtyAmount) {
   var amount = (0, _index.default)(dirtyAmount);
   return (0, _index2.default)(dirtyDate, amount * 12);
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMonths/index.js":"../node_modules/date-fns/esm/addMonths/index.js"}],"../node_modules/date-fns/esm/areIntervalsOverlapping/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = areIntervalsOverlapping;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name areIntervalsOverlapping
- * @category Interval Helpers
- * @summary Is the given time interval overlapping with another time interval?
- *
- * @description
- * Is the given time interval overlapping with another time interval?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `areRangesOverlapping` to `areIntervalsOverlapping`.
- *   This change was made to mirror the use of the word "interval" in standard ISO 8601:2004 terminology:
- *
- *   ```
- *   2.1.3
- *   time interval
- *   part of the time axis limited by two instants
- *   ```
- *
- *   Also, this function now accepts an object with `start` and `end` properties
- *   instead of two arguments as an interval.
- *   This function now throws `RangeError` if the start of the interval is after its end
- *   or if any date in the interval is `Invalid Date`.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   areRangesOverlapping(
- *     new Date(2014, 0, 10), new Date(2014, 0, 20),
- *     new Date(2014, 0, 17), new Date(2014, 0, 21)
- *   )
- *
- *   // v2.0.0 onward
- *
- *   areIntervalsOverlapping(
- *     { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *     { start: new Date(2014, 0, 17), end: new Date(2014, 0, 21) }
- *   )
- *   ```
- *
- * @param {Interval} intervalLeft - the first interval to compare. See [Interval]{@link docs/types/Interval}
- * @param {Interval} intervalRight - the second interval to compare. See [Interval]{@link docs/types/Interval}
- * @returns {Boolean} whether the time intervals are overlapping
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} The start of an interval cannot be after its end
- * @throws {RangeError} Date in interval cannot be `Invalid Date`
- *
- * @example
- * // For overlapping time intervals:
- * areIntervalsOverlapping(
- *   { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *   { start: new Date(2014, 0, 17), end: new Date(2014, 0, 21) }
- * )
- * //=> true
- *
- * @example
- * // For non-overlapping time intervals:
- * areIntervalsOverlapping(
- *   { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *   { start: new Date(2014, 0, 21), end: new Date(2014, 0, 22) }
- * )
- * //=> false
- */
-function areIntervalsOverlapping(dirtyIntervalLeft, dirtyIntervalRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var intervalLeft = dirtyIntervalLeft || {};
-  var intervalRight = dirtyIntervalRight || {};
-  var leftStartTime = (0, _index.default)(intervalLeft.start).getTime();
-  var leftEndTime = (0, _index.default)(intervalLeft.end).getTime();
-  var rightStartTime = (0, _index.default)(intervalRight.start).getTime();
-  var rightEndTime = (0, _index.default)(intervalRight.end).getTime(); // Throw an exception if start date is after end date or if any date is `Invalid Date`
-
-  if (!(leftStartTime <= leftEndTime && rightStartTime <= rightEndTime)) {
-    throw new RangeError('Invalid interval');
-  }
-
-  return leftStartTime < rightEndTime && rightStartTime < leftEndTime;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/closestIndexTo/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = closestIndexTo;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name closestIndexTo
- * @category Common Helpers
- * @summary Return an index of the closest date from the array comparing to the given date.
- *
- * @description
- * Return an index of the closest date from the array comparing to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - Now, `closestIndexTo` doesn't throw an exception
- *   when the second argument is not an array, and returns Invalid Date instead.
- *
- * @param {Date|Number} dateToCompare - the date to compare with
- * @param {Date[]|Number[]} datesArray - the array to search
- * @returns {Number} an index of the date closest to the given date
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Which date is closer to 6 September 2015?
- * var dateToCompare = new Date(2015, 8, 6)
- * var datesArray = [
- *   new Date(2015, 0, 1),
- *   new Date(2016, 0, 1),
- *   new Date(2017, 0, 1)
- * ]
- * var result = closestIndexTo(dateToCompare, datesArray)
- * //=> 1
- */
-function closestIndexTo(dirtyDateToCompare, dirtyDatesArray) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateToCompare = (0, _index.default)(dirtyDateToCompare);
-
-  if (isNaN(dateToCompare)) {
-    return NaN;
-  }
-
-  var timeToCompare = dateToCompare.getTime();
-  var datesArray; // `dirtyDatesArray` is undefined or null
-
-  if (dirtyDatesArray == null) {
-    datesArray = []; // `dirtyDatesArray` is Array, Set or Map, or object with custom `forEach` method
-  } else if (typeof dirtyDatesArray.forEach === 'function') {
-    datesArray = dirtyDatesArray; // If `dirtyDatesArray` is Array-like Object, convert to Array. Otherwise, make it empty Array
-  } else {
-    datesArray = Array.prototype.slice.call(dirtyDatesArray);
-  }
-
-  var result;
-  var minDistance;
-  datesArray.forEach(function (dirtyDate, index) {
-    var currentDate = (0, _index.default)(dirtyDate);
-
-    if (isNaN(currentDate)) {
-      result = NaN;
-      minDistance = NaN;
-      return;
-    }
-
-    var distance = Math.abs(timeToCompare - currentDate.getTime());
-
-    if (result == null || distance < minDistance) {
-      result = index;
-      minDistance = distance;
-    }
-  });
-  return result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/closestTo/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = closestTo;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name closestTo
- * @category Common Helpers
- * @summary Return a date from the array closest to the given date.
- *
- * @description
- * Return a date from the array closest to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - Now, `closestTo` doesn't throw an exception
- *   when the second argument is not an array, and returns Invalid Date instead.
- *
- * @param {Date|Number} dateToCompare - the date to compare with
- * @param {Date[]|Number[]} datesArray - the array to search
- * @returns {Date} the date from the array closest to the given date
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Which date is closer to 6 September 2015: 1 January 2000 or 1 January 2030?
- * var dateToCompare = new Date(2015, 8, 6)
- * var result = closestTo(dateToCompare, [
- *   new Date(2000, 0, 1),
- *   new Date(2030, 0, 1)
- * ])
- * //=> Tue Jan 01 2030 00:00:00
- */
-function closestTo(dirtyDateToCompare, dirtyDatesArray) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateToCompare = (0, _index.default)(dirtyDateToCompare);
-
-  if (isNaN(dateToCompare)) {
-    return new Date(NaN);
-  }
-
-  var timeToCompare = dateToCompare.getTime();
-  var datesArray; // `dirtyDatesArray` is undefined or null
-
-  if (dirtyDatesArray == null) {
-    datesArray = []; // `dirtyDatesArray` is Array, Set or Map, or object with custom `forEach` method
-  } else if (typeof dirtyDatesArray.forEach === 'function') {
-    datesArray = dirtyDatesArray; // If `dirtyDatesArray` is Array-like Object, convert to Array. Otherwise, make it empty Array
-  } else {
-    datesArray = Array.prototype.slice.call(dirtyDatesArray);
-  }
-
-  var result;
-  var minDistance;
-  datesArray.forEach(function (dirtyDate) {
-    var currentDate = (0, _index.default)(dirtyDate);
-
-    if (isNaN(currentDate)) {
-      result = new Date(NaN);
-      minDistance = NaN;
-      return;
-    }
-
-    var distance = Math.abs(timeToCompare - currentDate.getTime());
-
-    if (result == null || distance < minDistance) {
-      result = currentDate;
-      minDistance = distance;
-    }
-  });
-  return result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/compareAsc/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = compareAsc;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name compareAsc
- * @category Common Helpers
- * @summary Compare the two dates and return -1, 0 or 1.
- *
- * @description
- * Compare the two dates and return 1 if the first date is after the second,
- * -1 if the first date is before the second or 0 if dates are equal.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to compare
- * @param {Date|Number} dateRight - the second date to compare
- * @returns {Number} the result of the comparison
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Compare 11 February 1987 and 10 July 1989:
- * var result = compareAsc(new Date(1987, 1, 11), new Date(1989, 6, 10))
- * //=> -1
- *
- * @example
- * // Sort the array of dates:
- * var result = [
- *   new Date(1995, 6, 2),
- *   new Date(1987, 1, 11),
- *   new Date(1989, 6, 10)
- * ].sort(compareAsc)
- * //=> [
- * //   Wed Feb 11 1987 00:00:00,
- * //   Mon Jul 10 1989 00:00:00,
- * //   Sun Jul 02 1995 00:00:00
- * // ]
- */
-function compareAsc(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var diff = dateLeft.getTime() - dateRight.getTime();
-
-  if (diff < 0) {
-    return -1;
-  } else if (diff > 0) {
-    return 1; // Return 0 if diff is 0; return NaN if diff is NaN
-  } else {
-    return diff;
-  }
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/compareDesc/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = compareDesc;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name compareDesc
- * @category Common Helpers
- * @summary Compare the two dates reverse chronologically and return -1, 0 or 1.
- *
- * @description
- * Compare the two dates and return -1 if the first date is after the second,
- * 1 if the first date is before the second or 0 if dates are equal.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to compare
- * @param {Date|Number} dateRight - the second date to compare
- * @returns {Number} the result of the comparison
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Compare 11 February 1987 and 10 July 1989 reverse chronologically:
- * var result = compareDesc(new Date(1987, 1, 11), new Date(1989, 6, 10))
- * //=> 1
- *
- * @example
- * // Sort the array of dates in reverse chronological order:
- * var result = [
- *   new Date(1995, 6, 2),
- *   new Date(1987, 1, 11),
- *   new Date(1989, 6, 10)
- * ].sort(compareDesc)
- * //=> [
- * //   Sun Jul 02 1995 00:00:00,
- * //   Mon Jul 10 1989 00:00:00,
- * //   Wed Feb 11 1987 00:00:00
- * // ]
- */
-function compareDesc(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var diff = dateLeft.getTime() - dateRight.getTime();
-
-  if (diff > 0) {
-    return -1;
-  } else if (diff < 0) {
-    return 1; // Return 0 if diff is 0; return NaN if diff is NaN
-  } else {
-    return diff;
-  }
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarISOWeekYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarISOWeekYears;
-
-var _index = _interopRequireDefault(require("../getISOWeekYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInCalendarISOWeekYears
- * @category ISO Week-Numbering Year Helpers
- * @summary Get the number of calendar ISO week-numbering years between the given dates.
- *
- * @description
- * Get the number of calendar ISO week-numbering years between the given dates.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `differenceInCalendarISOYears` to `differenceInCalendarISOWeekYears`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `addWeekYears`.
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar ISO week-numbering years
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar ISO week-numbering years are 1 January 2010 and 1 January 2012?
- * var result = differenceInCalendarISOWeekYears(
- *   new Date(2012, 0, 1),
- *   new Date(2010, 0, 1)
- * )
- * //=> 2
- */
-function differenceInCalendarISOWeekYears(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDateLeft) - (0, _index.default)(dirtyDateRight);
-}
-},{"../getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarISOWeeks/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarISOWeeks;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_WEEK = 604800000;
-/**
- * @name differenceInCalendarISOWeeks
- * @category ISO Week Helpers
- * @summary Get the number of calendar ISO weeks between the given dates.
- *
- * @description
- * Get the number of calendar ISO weeks between the given dates.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar ISO weeks
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar ISO weeks are between 6 July 2014 and 21 July 2014?
- * var result = differenceInCalendarISOWeeks(
- *   new Date(2014, 6, 21),
- *   new Date(2014, 6, 6)
- * )
- * //=> 3
- */
-
-function differenceInCalendarISOWeeks(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var startOfISOWeekLeft = (0, _index2.default)(dirtyDateLeft);
-  var startOfISOWeekRight = (0, _index2.default)(dirtyDateRight);
-  var timestampLeft = startOfISOWeekLeft.getTime() - (0, _index.default)(startOfISOWeekLeft);
-  var timestampRight = startOfISOWeekRight.getTime() - (0, _index.default)(startOfISOWeekRight); // Round the number of days to the nearest integer
-  // because the number of milliseconds in a week is not constant
-  // (e.g. it's different in the week of the daylight saving time clock shift)
-
-  return Math.round((timestampLeft - timestampRight) / MILLISECONDS_IN_WEEK);
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarMonths/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarMonths;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInCalendarMonths
- * @category Month Helpers
- * @summary Get the number of calendar months between the given dates.
- *
- * @description
- * Get the number of calendar months between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar months
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar months are between 31 January 2014 and 1 September 2014?
- * var result = differenceInCalendarMonths(
- *   new Date(2014, 8, 1),
- *   new Date(2014, 0, 31)
- * )
- * //=> 8
- */
-function differenceInCalendarMonths(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var yearDiff = dateLeft.getFullYear() - dateRight.getFullYear();
-  var monthDiff = dateLeft.getMonth() - dateRight.getMonth();
-  return yearDiff * 12 + monthDiff;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getQuarter;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getQuarter
- * @category Quarter Helpers
- * @summary Get the year quarter of the given date.
- *
- * @description
- * Get the year quarter of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the quarter
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which quarter is 2 July 2014?
- * var result = getQuarter(new Date(2014, 6, 2))
- * //=> 3
- */
-function getQuarter(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var quarter = Math.floor(date.getMonth() / 3) + 1;
-  return quarter;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarQuarters/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarQuarters;
-
-var _index = _interopRequireDefault(require("../getQuarter/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInCalendarQuarters
- * @category Quarter Helpers
- * @summary Get the number of calendar quarters between the given dates.
- *
- * @description
- * Get the number of calendar quarters between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar quarters
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar quarters are between 31 December 2013 and 2 July 2014?
- * var result = differenceInCalendarQuarters(
- *   new Date(2014, 6, 2),
- *   new Date(2013, 11, 31)
- * )
- * //=> 3
- */
-function differenceInCalendarQuarters(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index2.default)(dirtyDateLeft);
-  var dateRight = (0, _index2.default)(dirtyDateRight);
-  var yearDiff = dateLeft.getFullYear() - dateRight.getFullYear();
-  var quarterDiff = (0, _index.default)(dateLeft) - (0, _index.default)(dateRight);
-  return yearDiff * 4 + quarterDiff;
-}
-},{"../getQuarter/index.js":"../node_modules/date-fns/esm/getQuarter/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarWeeks/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarWeeks;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_WEEK = 604800000;
-/**
- * @name differenceInCalendarWeeks
- * @category Week Helpers
- * @summary Get the number of calendar weeks between the given dates.
- *
- * @description
- * Get the number of calendar weeks between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Number} the number of calendar weeks
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // How many calendar weeks are between 5 July 2014 and 20 July 2014?
- * var result = differenceInCalendarWeeks(
- *   new Date(2014, 6, 20),
- *   new Date(2014, 6, 5)
- * )
- * //=> 3
- *
- * @example
- * // If the week starts on Monday,
- * // how many calendar weeks are between 5 July 2014 and 20 July 2014?
- * var result = differenceInCalendarWeeks(
- *   new Date(2014, 6, 20),
- *   new Date(2014, 6, 5),
- *   { weekStartsOn: 1 }
- * )
- * //=> 2
- */
-
-function differenceInCalendarWeeks(dirtyDateLeft, dirtyDateRight, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var startOfWeekLeft = (0, _index2.default)(dirtyDateLeft, dirtyOptions);
-  var startOfWeekRight = (0, _index2.default)(dirtyDateRight, dirtyOptions);
-  var timestampLeft = startOfWeekLeft.getTime() - (0, _index.default)(startOfWeekLeft);
-  var timestampRight = startOfWeekRight.getTime() - (0, _index.default)(startOfWeekRight); // Round the number of days to the nearest integer
-  // because the number of milliseconds in a week is not constant
-  // (e.g. it's different in the week of the daylight saving time clock shift)
-
-  return Math.round((timestampLeft - timestampRight) / MILLISECONDS_IN_WEEK);
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js"}],"../node_modules/date-fns/esm/differenceInCalendarYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInCalendarYears;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInCalendarYears
- * @category Year Helpers
- * @summary Get the number of calendar years between the given dates.
- *
- * @description
- * Get the number of calendar years between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of calendar years
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many calendar years are between 31 December 2013 and 11 February 2015?
- * var result = differenceInCalendarYears(
- *   new Date(2015, 1, 11),
- *   new Date(2013, 11, 31)
- * )
- * //=> 2
- */
-function differenceInCalendarYears(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  return dateLeft.getFullYear() - dateRight.getFullYear();
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInDays/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInDays;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../differenceInCalendarDays/index.js"));
-
-var _index3 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInDays
- * @category Day Helpers
- * @summary Get the number of full days between the given dates.
- *
- * @description
- * Get the number of full day periods between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full days
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full days are between
- * // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
- * var result = differenceInDays(
- *   new Date(2012, 6, 2, 0, 0),
- *   new Date(2011, 6, 2, 23, 0)
- * )
- * //=> 365
- * // How many days are between
- * // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
- * var result = differenceInDays(
- *   new Date(2011, 6, 2, 0, 1),
- *   new Date(2011, 6, 2, 23, 59)
- * )
- * //=> 0
- */
-function differenceInDays(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var sign = (0, _index3.default)(dateLeft, dateRight);
-  var difference = Math.abs((0, _index2.default)(dateLeft, dateRight));
-  dateLeft.setDate(dateLeft.getDate() - sign * difference); // Math.abs(diff in full days - diff in calendar days) === 1 if last calendar day is not full
-  // If so, result must be decreased by 1 in absolute value
-
-  var isLastDayNotFull = (0, _index3.default)(dateLeft, dateRight) === -sign;
-  var result = sign * (difference - isLastDayNotFull); // Prevent negative zero
-
-  return result === 0 ? 0 : result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js"}],"../node_modules/date-fns/esm/differenceInMilliseconds/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMonths/index.js":"../node_modules/date-fns/esm/addMonths/index.js"}],"../node_modules/date-fns/esm/differenceInMilliseconds/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48043,460 +46485,7 @@ function differenceInMilliseconds(dirtyDateLeft, dirtyDateRight) {
   var dateRight = (0, _index.default)(dirtyDateRight);
   return dateLeft.getTime() - dateRight.getTime();
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/differenceInHours/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInHours;
-
-var _index = _interopRequireDefault(require("../differenceInMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_HOUR = 3600000;
-/**
- * @name differenceInHours
- * @category Hour Helpers
- * @summary Get the number of hours between the given dates.
- *
- * @description
- * Get the number of hours between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of hours
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many hours are between 2 July 2014 06:50:00 and 2 July 2014 19:00:00?
- * var result = differenceInHours(
- *   new Date(2014, 6, 2, 19, 0),
- *   new Date(2014, 6, 2, 6, 50)
- * )
- * //=> 12
- */
-
-function differenceInHours(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var diff = (0, _index.default)(dirtyDateLeft, dirtyDateRight) / MILLISECONDS_IN_HOUR;
-  return diff > 0 ? Math.floor(diff) : Math.ceil(diff);
-}
-},{"../differenceInMilliseconds/index.js":"../node_modules/date-fns/esm/differenceInMilliseconds/index.js"}],"../node_modules/date-fns/esm/subISOWeekYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subISOWeekYears;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addISOWeekYears/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subISOWeekYears
- * @category ISO Week-Numbering Year Helpers
- * @summary Subtract the specified number of ISO week-numbering years from the given date.
- *
- * @description
- * Subtract the specified number of ISO week-numbering years from the given date.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `subISOYears` to `subISOWeekYears`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `setWeekYear`.
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of ISO week-numbering years to be subtracted
- * @returns {Date} the new date with the ISO week-numbering years subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 5 ISO week-numbering years from 1 September 2014:
- * var result = subISOWeekYears(new Date(2014, 8, 1), 5)
- * //=> Mon Aug 31 2009 00:00:00
- */
-function subISOWeekYears(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addISOWeekYears/index.js":"../node_modules/date-fns/esm/addISOWeekYears/index.js"}],"../node_modules/date-fns/esm/differenceInISOWeekYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInISOWeekYears;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../differenceInCalendarISOWeekYears/index.js"));
-
-var _index3 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-var _index4 = _interopRequireDefault(require("../subISOWeekYears/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInISOWeekYears
- * @category ISO Week-Numbering Year Helpers
- * @summary Get the number of full ISO week-numbering years between the given dates.
- *
- * @description
- * Get the number of full ISO week-numbering years between the given dates.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `differenceInISOYears` to `differenceInISOWeekYears`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `addWeekYears`.
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full ISO week-numbering years
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full ISO week-numbering years are between 1 January 2010 and 1 January 2012?
- * var result = differenceInISOWeekYears(
- *   new Date(2012, 0, 1),
- *   new Date(2010, 0, 1)
- * )
- * //=> 1
- */
-function differenceInISOWeekYears(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var sign = (0, _index3.default)(dateLeft, dateRight);
-  var difference = Math.abs((0, _index2.default)(dateLeft, dateRight));
-  dateLeft = (0, _index4.default)(dateLeft, sign * difference); // Math.abs(diff in full ISO years - diff in calendar ISO years) === 1
-  // if last calendar ISO year is not full
-  // If so, result must be decreased by 1 in absolute value
-
-  var isLastISOWeekYearNotFull = (0, _index3.default)(dateLeft, dateRight) === -sign;
-  var result = sign * (difference - isLastISOWeekYearNotFull); // Prevent negative zero
-
-  return result === 0 ? 0 : result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInCalendarISOWeekYears/index.js":"../node_modules/date-fns/esm/differenceInCalendarISOWeekYears/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js","../subISOWeekYears/index.js":"../node_modules/date-fns/esm/subISOWeekYears/index.js"}],"../node_modules/date-fns/esm/differenceInMinutes/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInMinutes;
-
-var _index = _interopRequireDefault(require("../differenceInMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_MINUTE = 60000;
-/**
- * @name differenceInMinutes
- * @category Minute Helpers
- * @summary Get the number of minutes between the given dates.
- *
- * @description
- * Get the number of minutes between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of minutes
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many minutes are between 2 July 2014 12:07:59 and 2 July 2014 12:20:00?
- * var result = differenceInMinutes(
- *   new Date(2014, 6, 2, 12, 20, 0),
- *   new Date(2014, 6, 2, 12, 7, 59)
- * )
- * //=> 12
- */
-
-function differenceInMinutes(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var diff = (0, _index.default)(dirtyDateLeft, dirtyDateRight) / MILLISECONDS_IN_MINUTE;
-  return diff > 0 ? Math.floor(diff) : Math.ceil(diff);
-}
-},{"../differenceInMilliseconds/index.js":"../node_modules/date-fns/esm/differenceInMilliseconds/index.js"}],"../node_modules/date-fns/esm/differenceInMonths/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInMonths;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../differenceInCalendarMonths/index.js"));
-
-var _index3 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInMonths
- * @category Month Helpers
- * @summary Get the number of full months between the given dates.
- *
- * @description
- * Get the number of full months between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full months
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full months are between 31 January 2014 and 1 September 2014?
- * var result = differenceInMonths(new Date(2014, 8, 1), new Date(2014, 0, 31))
- * //=> 7
- */
-function differenceInMonths(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var sign = (0, _index3.default)(dateLeft, dateRight);
-  var difference = Math.abs((0, _index2.default)(dateLeft, dateRight));
-  dateLeft.setMonth(dateLeft.getMonth() - sign * difference); // Math.abs(diff in full months - diff in calendar months) === 1 if last calendar month is not full
-  // If so, result must be decreased by 1 in absolute value
-
-  var isLastMonthNotFull = (0, _index3.default)(dateLeft, dateRight) === -sign;
-  var result = sign * (difference - isLastMonthNotFull); // Prevent negative zero
-
-  return result === 0 ? 0 : result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInCalendarMonths/index.js":"../node_modules/date-fns/esm/differenceInCalendarMonths/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js"}],"../node_modules/date-fns/esm/differenceInQuarters/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInQuarters;
-
-var _index = _interopRequireDefault(require("../differenceInMonths/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInQuarters
- * @category Quarter Helpers
- * @summary Get the number of full quarters between the given dates.
- *
- * @description
- * Get the number of full quarters between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full quarters
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full quarters are between 31 December 2013 and 2 July 2014?
- * var result = differenceInQuarters(new Date(2014, 6, 2), new Date(2013, 11, 31))
- * //=> 2
- */
-function differenceInQuarters(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var diff = (0, _index.default)(dirtyDateLeft, dirtyDateRight) / 3;
-  return diff > 0 ? Math.floor(diff) : Math.ceil(diff);
-}
-},{"../differenceInMonths/index.js":"../node_modules/date-fns/esm/differenceInMonths/index.js"}],"../node_modules/date-fns/esm/differenceInSeconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInSeconds;
-
-var _index = _interopRequireDefault(require("../differenceInMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInSeconds
- * @category Second Helpers
- * @summary Get the number of seconds between the given dates.
- *
- * @description
- * Get the number of seconds between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of seconds
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many seconds are between
- * // 2 July 2014 12:30:07.999 and 2 July 2014 12:30:20.000?
- * var result = differenceInSeconds(
- *   new Date(2014, 6, 2, 12, 30, 20, 0),
- *   new Date(2014, 6, 2, 12, 30, 7, 999)
- * )
- * //=> 12
- */
-function differenceInSeconds(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var diff = (0, _index.default)(dirtyDateLeft, dirtyDateRight) / 1000;
-  return diff > 0 ? Math.floor(diff) : Math.ceil(diff);
-}
-},{"../differenceInMilliseconds/index.js":"../node_modules/date-fns/esm/differenceInMilliseconds/index.js"}],"../node_modules/date-fns/esm/differenceInWeeks/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInWeeks;
-
-var _index = _interopRequireDefault(require("../differenceInDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInWeeks
- * @category Week Helpers
- * @summary Get the number of full weeks between the given dates.
- *
- * @description
- * Get the number of full weeks between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full weeks
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full weeks are between 5 July 2014 and 20 July 2014?
- * var result = differenceInWeeks(new Date(2014, 6, 20), new Date(2014, 6, 5))
- * //=> 2
- */
-function differenceInWeeks(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var diff = (0, _index.default)(dirtyDateLeft, dirtyDateRight) / 7;
-  return diff > 0 ? Math.floor(diff) : Math.ceil(diff);
-}
-},{"../differenceInDays/index.js":"../node_modules/date-fns/esm/differenceInDays/index.js"}],"../node_modules/date-fns/esm/differenceInYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = differenceInYears;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../differenceInCalendarYears/index.js"));
-
-var _index3 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name differenceInYears
- * @category Year Helpers
- * @summary Get the number of full years between the given dates.
- *
- * @description
- * Get the number of full years between the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the later date
- * @param {Date|Number} dateRight - the earlier date
- * @returns {Number} the number of full years
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // How many full years are between 31 December 2013 and 11 February 2015?
- * var result = differenceInYears(new Date(2015, 1, 11), new Date(2013, 11, 31))
- * //=> 1
- */
-function differenceInYears(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  var sign = (0, _index3.default)(dateLeft, dateRight);
-  var difference = Math.abs((0, _index2.default)(dateLeft, dateRight));
-  dateLeft.setFullYear(dateLeft.getFullYear() - sign * difference); // Math.abs(diff in full years - diff in calendar years) === 1 if last calendar year is not full
-  // If so, result must be decreased by 1 in absolute value
-
-  var isLastYearNotFull = (0, _index3.default)(dateLeft, dateRight) === -sign;
-  var result = sign * (difference - isLastYearNotFull); // Prevent negative zero
-
-  return result === 0 ? 0 : result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInCalendarYears/index.js":"../node_modules/date-fns/esm/differenceInCalendarYears/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js"}],"../node_modules/date-fns/esm/eachDayOfInterval/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/eachDayOfInterval/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -48597,526 +46586,7 @@ function eachDayOfInterval(dirtyInterval, options) {
 
   return dates;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/eachWeekOfInterval/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = eachWeekOfInterval;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-var _index3 = _interopRequireDefault(require("../addWeeks/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name eachWeekOfInterval
- * @category Interval Helpers
- * @summary Return the array of weeks within the specified time interval.
- *
- * @description
- * Return the array of weeks within the specified time interval.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Interval} interval - the interval. See [Interval]{@link docs/types/Interval}
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @returns {Date[]} the array with starts of weeks from the week of the interval start to the week of the interval end
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be 0, 1, ..., 6
- * @throws {RangeError} The start of an interval cannot be after its end
- * @throws {RangeError} Date in interval cannot be `Invalid Date`
- *
- * @example
- * // Each week within interval 6 October 2014 - 23 November 2014:
- * var result = eachWeekOfInterval({
- *   start: new Date(2014, 9, 6),
- *   end: new Date(2014, 10, 23)
- * })
- * //=> [
- * //   Sun Oct 05 2014 00:00:00,
- * //   Sun Oct 12 2014 00:00:00,
- * //   Sun Oct 19 2014 00:00:00,
- * //   Sun Oct 26 2014 00:00:00,
- * //   Sun Nov 02 2014 00:00:00,
- * //   Sun Nov 09 2014 00:00:00,
- * //   Sun Nov 16 2014 00:00:00,
- * //   Sun Nov 23 2014 00:00:00
- * // ]
- */
-function eachWeekOfInterval(dirtyInterval, options) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var interval = dirtyInterval || {};
-  var startDate = (0, _index.default)(interval.start);
-  var endDate = (0, _index.default)(interval.end);
-  var endTime = endDate.getTime(); // Throw an exception if start date is after end date or if any date is `Invalid Date`
-
-  if (!(startDate.getTime() <= endTime)) {
-    throw new RangeError('Invalid interval');
-  }
-
-  var startDateWeek = (0, _index2.default)(startDate, options);
-  var endDateWeek = (0, _index2.default)(endDate, options); // Some timezones switch DST at midnight, making start of day unreliable in these timezones, 3pm is a safe bet
-
-  startDateWeek.setHours(15);
-  endDateWeek.setHours(15);
-  endTime = endDateWeek.getTime();
-  var weeks = [];
-  var currentWeek = startDateWeek;
-
-  while (currentWeek.getTime() <= endTime) {
-    currentWeek.setHours(0);
-    weeks.push((0, _index.default)(currentWeek));
-    currentWeek = (0, _index3.default)(currentWeek, 1);
-    currentWeek.setHours(15);
-  }
-
-  return weeks;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js","../addWeeks/index.js":"../node_modules/date-fns/esm/addWeeks/index.js"}],"../node_modules/date-fns/esm/isSunday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSunday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSunday
- * @category Weekday Helpers
- * @summary Is the given date Sunday?
- *
- * @description
- * Is the given date Sunday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Sunday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 21 September 2014 Sunday?
- * var result = isSunday(new Date(2014, 8, 21))
- * //=> true
- */
-function isSunday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 0;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isWeekend/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isWeekend;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isWeekend
- * @category Weekday Helpers
- * @summary Does the given date fall on a weekend?
- *
- * @description
- * Does the given date fall on a weekend?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date falls on a weekend
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Does 5 October 2014 fall on a weekend?
- * var result = isWeekend(new Date(2014, 9, 5))
- * //=> true
- */
-function isWeekend(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var day = date.getDay();
-  return day === 0 || day === 6;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/eachWeekendOfInterval/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = eachWeekendOfInterval;
-
-var _index = _interopRequireDefault(require("../eachDayOfInterval/index.js"));
-
-var _index2 = _interopRequireDefault(require("../isSunday/index.js"));
-
-var _index3 = _interopRequireDefault(require("../isWeekend/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name eachWeekendOfInterval
- * @category Interval Helpers
- * @summary List all the Saturdays and Sundays in the given date interval.
- *
- * @description
- * Get all the Saturdays and Sundays in the given date interval.
- *
- * @param {Interval} interval - the given interval. See [Interval]{@link docs/types/Interval}
- * @returns {Date[]} an array containing all the Saturdays and Sundays
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} The start of an interval cannot be after its end
- * @throws {RangeError} Date in interval cannot be `Invalid Date`
- *
- * @example
- * // Lists all Saturdays and Sundays in the given date interval
- * var result = eachWeekendOfInterval({
- *   start: new Date(2018, 8, 17),
- *   end: new Date(2018, 8, 30)
- * })
- * //=> [
- * //   Sat Sep 22 2018 00:00:00,
- * //   Sun Sep 23 2018 00:00:00,
- * //   Sat Sep 29 2018 00:00:00,
- * //   Sun Sep 30 2018 00:00:00
- * // ]
- */
-function eachWeekendOfInterval(interval) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var dateInterval = (0, _index.default)(interval);
-  var weekends = [];
-  var index = 0;
-
-  while (index++ < dateInterval.length) {
-    var date = dateInterval[index];
-
-    if ((0, _index3.default)(date)) {
-      weekends.push(date);
-      if ((0, _index2.default)(date)) index = index + 5;
-    }
-  }
-
-  return weekends;
-}
-},{"../eachDayOfInterval/index.js":"../node_modules/date-fns/esm/eachDayOfInterval/index.js","../isSunday/index.js":"../node_modules/date-fns/esm/isSunday/index.js","../isWeekend/index.js":"../node_modules/date-fns/esm/isWeekend/index.js"}],"../node_modules/date-fns/esm/startOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfMonth
- * @category Month Helpers
- * @summary Return the start of a month for the given date.
- *
- * @description
- * Return the start of a month for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a month for 2 September 2014 11:55:00:
- * var result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Mon Sep 01 2014 00:00:00
- */
-function startOfMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  date.setDate(1);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfMonth
- * @category Month Helpers
- * @summary Return the end of a month for the given date.
- *
- * @description
- * Return the end of a month for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of a month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of a month for 2 September 2014 11:55:00:
- * var result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Sep 30 2014 23:59:59.999
- */
-function endOfMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var month = date.getMonth();
-  date.setFullYear(date.getFullYear(), month + 1, 0);
-  date.setHours(23, 59, 59, 999);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/eachWeekendOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = eachWeekendOfMonth;
-
-var _index = _interopRequireDefault(require("../eachWeekendOfInterval/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfMonth/index.js"));
-
-var _index3 = _interopRequireDefault(require("../endOfMonth/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name eachWeekendOfMonth
- * @category Month Helpers
- * @summary List all the Saturdays and Sundays in the given month.
- *
- * @description
- * Get all the Saturdays and Sundays in the given month.
- *
- * @param {Date|Number} date - the given month
- * @returns {Date[]} an array containing all the Saturdays and Sundays
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} The passed date is invalid
- *
- * @example
- * // Lists all Saturdays and Sundays in the given month
- * var result = eachWeekendOfMonth(new Date(2022, 1, 1))
- * //=> [
- * //   Sat Feb 05 2022 00:00:00,
- * //   Sun Feb 06 2022 00:00:00,
- * //   Sat Feb 12 2022 00:00:00,
- * //   Sun Feb 13 2022 00:00:00,
- * //   Sat Feb 19 2022 00:00:00,
- * //   Sun Feb 20 2022 00:00:00,
- * //   Sat Feb 26 2022 00:00:00,
- * //   Sun Feb 27 2022 00:00:00
- * // ]
- */
-function eachWeekendOfMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var startDate = (0, _index2.default)(dirtyDate);
-  if (isNaN(startDate)) throw new RangeError('The passed date is invalid');
-  var endDate = (0, _index3.default)(dirtyDate);
-  return (0, _index.default)({
-    start: startDate,
-    end: endDate
-  });
-}
-},{"../eachWeekendOfInterval/index.js":"../node_modules/date-fns/esm/eachWeekendOfInterval/index.js","../startOfMonth/index.js":"../node_modules/date-fns/esm/startOfMonth/index.js","../endOfMonth/index.js":"../node_modules/date-fns/esm/endOfMonth/index.js"}],"../node_modules/date-fns/esm/startOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfYear
- * @category Year Helpers
- * @summary Return the start of a year for the given date.
- *
- * @description
- * Return the start of a year for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a year for 2 September 2014 11:55:00:
- * var result = startOfYear(new Date(2014, 8, 2, 11, 55, 00))
- * //=> Wed Jan 01 2014 00:00:00
- */
-function startOfYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var cleanDate = (0, _index.default)(dirtyDate);
-  var date = new Date(0);
-  date.setFullYear(cleanDate.getFullYear(), 0, 1);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfYear
- * @category Year Helpers
- * @summary Return the end of a year for the given date.
- *
- * @description
- * Return the end of a year for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of a year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of a year for 2 September 2014 11:55:00:
- * var result = endOfYear(new Date(2014, 8, 2, 11, 55, 00))
- * //=> Wed Dec 31 2014 23:59:59.999
- */
-function endOfYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  date.setFullYear(year + 1, 0, 0);
-  date.setHours(23, 59, 59, 999);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/eachWeekendOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = eachWeekendOfYear;
-
-var _index = _interopRequireDefault(require("../eachWeekendOfInterval/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfYear/index.js"));
-
-var _index3 = _interopRequireDefault(require("../endOfYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name eachWeekendOfYear
- * @category Year Helpers
- * @summary List all the Saturdays and Sundays in the year.
- *
- * @description
- * Get all the Saturdays and Sundays in the year.
- *
- * @param {Date|Number} date - the given year
- * @returns {Date[]} an array containing all the Saturdays and Sundays
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} The passed date is invalid
- *
- * @example
- * // Lists all Saturdays and Sundays in the year
- * var result = eachWeekendOfYear(new Date(2020, 1, 1))
- * //=> [
- * //   Sat Jan 03 2020 00:00:00,
- * //   Sun Jan 04 2020 00:00:00,
- * //   ...
- * //   Sun Dec 27 2020 00:00:00
- * // ]
- * ]
- */
-function eachWeekendOfYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var startDate = (0, _index2.default)(dirtyDate);
-  if (isNaN(startDate)) throw new RangeError('The passed date is invalid');
-  var endDate = (0, _index3.default)(dirtyDate);
-  return (0, _index.default)({
-    start: startDate,
-    end: endDate
-  });
-}
-},{"../eachWeekendOfInterval/index.js":"../node_modules/date-fns/esm/eachWeekendOfInterval/index.js","../startOfYear/index.js":"../node_modules/date-fns/esm/startOfYear/index.js","../endOfYear/index.js":"../node_modules/date-fns/esm/endOfYear/index.js"}],"../node_modules/date-fns/esm/endOfDay/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfDay/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -49157,97 +46627,6 @@ function endOfDay(dirtyDate) {
 
   var date = (0, _index.default)(dirtyDate);
   date.setHours(23, 59, 59, 999);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfDecade/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfDecade;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfDecade
- * @category Decade Helpers
- * @summary Return the end of a decade for the given date.
- *
- * @description
- * Return the end of a decade for the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of a decade
- * @param {Object} [options] - an object with options.
- * @param {0|1|2} [options.additionalDigits=2] - passed to `toDate`. See [toDate]{@link https://date-fns.org/docs/toDate}
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.additionalDigits` must be 0, 1 or 2
- *
- * @example
- * // The end of a decade for 12 May 1984 00:00:00:
- * var result = endOfDecade(new Date(1984, 4, 12, 00, 00, 00))
- * //=> Dec 31 1989 23:59:59.999
- */
-function endOfDecade(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  var decade = 9 + Math.floor(year / 10) * 10;
-  date.setFullYear(decade, 11, 31);
-  date.setHours(23, 59, 59, 999);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfHour/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfHour;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfHour
- * @category Hour Helpers
- * @summary Return the end of an hour for the given date.
- *
- * @description
- * Return the end of an hour for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of an hour
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of an hour for 2 September 2014 11:55:00:
- * var result = endOfHour(new Date(2014, 8, 2, 11, 55))
- * //=> Tue Sep 02 2014 11:59:59.999
- */
-function endOfHour(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  date.setMinutes(59, 59, 999);
   return date;
 }
 },{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfWeek/index.js":[function(require,module,exports) {
@@ -49317,127 +46696,25 @@ function endOfWeek(dirtyDate, dirtyOptions) {
   date.setHours(23, 59, 59, 999);
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfISOWeek/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfYear/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = endOfISOWeek;
-
-var _index = _interopRequireDefault(require("../endOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfISOWeek
- * @category ISO Week Helpers
- * @summary Return the end of an ISO week for the given date.
- *
- * @description
- * Return the end of an ISO week for the given date.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of an ISO week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of an ISO week for 2 September 2014 11:55:00:
- * var result = endOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Sun Sep 07 2014 23:59:59.999
- */
-function endOfISOWeek(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate, {
-    weekStartsOn: 1
-  });
-}
-},{"../endOfWeek/index.js":"../node_modules/date-fns/esm/endOfWeek/index.js"}],"../node_modules/date-fns/esm/endOfISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfISOWeekYear;
-
-var _index = _interopRequireDefault(require("../getISOWeekYear/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Return the end of an ISO week-numbering year for the given date.
- *
- * @description
- * Return the end of an ISO week-numbering year,
- * which always starts 3 days before the year's first Thursday.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `endOfISOYear` to `endOfISOWeekYear`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `addWeekYears`.
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of an ISO week-numbering year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of an ISO week-numbering year for 2 July 2005:
- * var result = endOfISOWeekYear(new Date(2005, 6, 2))
- * //=> Sun Jan 01 2006 23:59:59.999
- */
-function endOfISOWeekYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var year = (0, _index.default)(dirtyDate);
-  var fourthOfJanuaryOfNextYear = new Date(0);
-  fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
-  fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
-  var date = (0, _index2.default)(fourthOfJanuaryOfNextYear);
-  date.setMilliseconds(date.getMilliseconds() - 1);
-  return date;
-}
-},{"../getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js"}],"../node_modules/date-fns/esm/endOfMinute/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfMinute;
+exports.default = endOfYear;
 
 var _index = _interopRequireDefault(require("../toDate/index.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
- * @name endOfMinute
- * @category Minute Helpers
- * @summary Return the end of a minute for the given date.
+ * @name endOfYear
+ * @category Year Helpers
+ * @summary Return the end of a year for the given date.
  *
  * @description
- * Return the end of a minute for the given date.
+ * Return the end of a year for the given date.
  * The result will be in the local timezone.
  *
  * ### v2.0.0 breaking changes:
@@ -49445,113 +46722,53 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
  *
  * @param {Date|Number} date - the original date
- * @returns {Date} the end of a minute
+ * @returns {Date} the end of a year
  * @throws {TypeError} 1 argument required
  *
  * @example
- * // The end of a minute for 1 December 2014 22:15:45.400:
- * var result = endOfMinute(new Date(2014, 11, 1, 22, 15, 45, 400))
- * //=> Mon Dec 01 2014 22:15:59.999
+ * // The end of a year for 2 September 2014 11:55:00:
+ * var result = endOfYear(new Date(2014, 8, 2, 11, 55, 00))
+ * //=> Wed Dec 31 2014 23:59:59.999
  */
-function endOfMinute(dirtyDate) {
+function endOfYear(dirtyDate) {
   if (arguments.length < 1) {
     throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
   var date = (0, _index.default)(dirtyDate);
-  date.setSeconds(59, 999);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = endOfQuarter;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name endOfQuarter
- * @category Quarter Helpers
- * @summary Return the end of a year quarter for the given date.
- *
- * @description
- * Return the end of a year quarter for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of a quarter
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of a quarter for 2 September 2014 11:55:00:
- * var result = endOfQuarter(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Sep 30 2014 23:59:59.999
- */
-function endOfQuarter(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var currentMonth = date.getMonth();
-  var month = currentMonth - currentMonth % 3 + 3;
-  date.setMonth(month, 0);
+  var year = date.getFullYear();
+  date.setFullYear(year + 1, 0, 0);
   date.setHours(23, 59, 59, 999);
   return date;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfSecond/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = endOfSecond;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
+exports.default = getTimezoneOffsetInMilliseconds;
+var MILLISECONDS_IN_MINUTE = 60000;
 /**
- * @name endOfSecond
- * @category Second Helpers
- * @summary Return the end of a second for the given date.
+ * Google Chrome as of 67.0.3396.87 introduced timezones with offset that includes seconds.
+ * They usually appear for dates that denote time before the timezones were introduced
+ * (e.g. for 'Europe/Prague' timezone the offset is GMT+00:57:44 before 1 October 1891
+ * and GMT+01:00:00 after that date)
  *
- * @description
- * Return the end of a second for the given date.
- * The result will be in the local timezone.
+ * Date#getTimezoneOffset returns the offset in minutes and would return 57 for the example above,
+ * which would lead to incorrect calculations.
  *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of a second
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The end of a second for 1 December 2014 22:15:45.400:
- * var result = endOfSecond(new Date(2014, 11, 1, 22, 15, 45, 400))
- * //=> Mon Dec 01 2014 22:15:45.999
+ * This function returns the timezone offset in milliseconds that takes seconds in account.
  */
-function endOfSecond(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
 
-  var date = (0, _index.default)(dirtyDate);
-  date.setMilliseconds(999);
-  return date;
+function getTimezoneOffsetInMilliseconds(dirtyDate) {
+  var date = new Date(dirtyDate.getTime());
+  var baseTimezoneOffset = date.getTimezoneOffset();
+  date.setSeconds(0, 0);
+  var millisecondsPartOfTimezoneOffset = date.getTime() % MILLISECONDS_IN_MINUTE;
+  return baseTimezoneOffset * MILLISECONDS_IN_MINUTE + millisecondsPartOfTimezoneOffset;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isValid/index.js":[function(require,module,exports) {
+},{}],"../node_modules/date-fns/esm/isValid/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -51646,7 +48863,52 @@ var longFormatters = {
 };
 var _default = longFormatters;
 exports.default = _default;
-},{}],"../node_modules/date-fns/esm/subMilliseconds/index.js":[function(require,module,exports) {
+},{}],"../node_modules/date-fns/esm/addMilliseconds/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = addMilliseconds;
+
+var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
+
+var _index2 = _interopRequireDefault(require("../toDate/index.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * @name addMilliseconds
+ * @category Millisecond Helpers
+ * @summary Add the specified number of milliseconds to the given date.
+ *
+ * @description
+ * Add the specified number of milliseconds to the given date.
+ *
+ * ### v2.0.0 breaking changes:
+ *
+ * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
+ *
+ * @param {Date|Number} date - the date to be changed
+ * @param {Number} amount - the amount of milliseconds to be added
+ * @returns {Date} the new date with the milliseconds added
+ * @throws {TypeError} 2 arguments required
+ *
+ * @example
+ * // Add 750 milliseconds to 10 July 2014 12:45:30.000:
+ * var result = addMilliseconds(new Date(2014, 6, 10, 12, 45, 30, 0), 750)
+ * //=> Thu Jul 10 2014 12:45:30.750
+ */
+function addMilliseconds(dirtyDate, dirtyAmount) {
+  if (arguments.length < 2) {
+    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
+  }
+
+  var timestamp = (0, _index2.default)(dirtyDate).getTime();
+  var amount = (0, _index.default)(dirtyAmount);
+  return new Date(timestamp + amount);
+}
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/subMilliseconds/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -52143,951 +49405,7 @@ function format(dirtyDate, dirtyFormatStr, dirtyOptions) {
 function cleanEscapedString(input) {
   return input.match(escapedStringRegExp)[1].replace(doubleQuoteRegExp, "'");
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../isValid/index.js":"../node_modules/date-fns/esm/isValid/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js","../_lib/format/formatters/index.js":"../node_modules/date-fns/esm/_lib/format/formatters/index.js","../_lib/format/longFormatters/index.js":"../node_modules/date-fns/esm/_lib/format/longFormatters/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js","../_lib/protectedTokens/index.js":"../node_modules/date-fns/esm/_lib/protectedTokens/index.js"}],"../node_modules/date-fns/esm/_lib/assign/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = assign;
-
-function assign(target, dirtyObject) {
-  if (target == null) {
-    throw new TypeError('assign requires that input parameter not be null or undefined');
-  }
-
-  dirtyObject = dirtyObject || {};
-
-  for (var property in dirtyObject) {
-    if (dirtyObject.hasOwnProperty(property)) {
-      target[property] = dirtyObject[property];
-    }
-  }
-
-  return target;
-}
-},{}],"../node_modules/date-fns/esm/_lib/cloneObject/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = cloneObject;
-
-var _index = _interopRequireDefault(require("../assign/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function cloneObject(dirtyObject) {
-  return (0, _index.default)({}, dirtyObject);
-}
-},{"../assign/index.js":"../node_modules/date-fns/esm/_lib/assign/index.js"}],"../node_modules/date-fns/esm/formatDistance/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = formatDistance;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-var _index3 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index4 = _interopRequireDefault(require("../differenceInSeconds/index.js"));
-
-var _index5 = _interopRequireDefault(require("../differenceInMonths/index.js"));
-
-var _index6 = _interopRequireDefault(require("../_lib/cloneObject/index.js"));
-
-var _index7 = _interopRequireDefault(require("../locale/en-US/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MINUTES_IN_DAY = 1440;
-var MINUTES_IN_ALMOST_TWO_DAYS = 2520;
-var MINUTES_IN_MONTH = 43200;
-var MINUTES_IN_TWO_MONTHS = 86400;
-/**
- * @name formatDistance
- * @category Common Helpers
- * @summary Return the distance between the given dates in words.
- *
- * @description
- * Return the distance between the given dates in words.
- *
- * | Distance between dates                                            | Result              |
- * |-------------------------------------------------------------------|---------------------|
- * | 0 ... 30 secs                                                     | less than a minute  |
- * | 30 secs ... 1 min 30 secs                                         | 1 minute            |
- * | 1 min 30 secs ... 44 mins 30 secs                                 | [2..44] minutes     |
- * | 44 mins ... 30 secs ... 89 mins 30 secs                           | about 1 hour        |
- * | 89 mins 30 secs ... 23 hrs 59 mins 30 secs                        | about [2..24] hours |
- * | 23 hrs 59 mins 30 secs ... 41 hrs 59 mins 30 secs                 | 1 day               |
- * | 41 hrs 59 mins 30 secs ... 29 days 23 hrs 59 mins 30 secs         | [2..30] days        |
- * | 29 days 23 hrs 59 mins 30 secs ... 44 days 23 hrs 59 mins 30 secs | about 1 month       |
- * | 44 days 23 hrs 59 mins 30 secs ... 59 days 23 hrs 59 mins 30 secs | about 2 months      |
- * | 59 days 23 hrs 59 mins 30 secs ... 1 yr                           | [2..12] months      |
- * | 1 yr ... 1 yr 3 months                                            | about 1 year        |
- * | 1 yr 3 months ... 1 yr 9 month s                                  | over 1 year         |
- * | 1 yr 9 months ... 2 yrs                                           | almost 2 years      |
- * | N yrs ... N yrs 3 months                                          | about N years       |
- * | N yrs 3 months ... N yrs 9 months                                 | over N years        |
- * | N yrs 9 months ... N+1 yrs                                        | almost N+1 years    |
- *
- * With `options.includeSeconds == true`:
- * | Distance between dates | Result               |
- * |------------------------|----------------------|
- * | 0 secs ... 5 secs      | less than 5 seconds  |
- * | 5 secs ... 10 secs     | less than 10 seconds |
- * | 10 secs ... 20 secs    | less than 20 seconds |
- * | 20 secs ... 40 secs    | half a minute        |
- * | 40 secs ... 60 secs    | less than a minute   |
- * | 60 secs ... 90 secs    | 1 minute             |
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `distanceInWords ` to `formatDistance `
- *   to make its name consistent with `format` and `formatRelative`.
- *
- * - The order of arguments is swapped to make the function
- *   consistent with `differenceIn...` functions.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   distanceInWords(
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     new Date(1986, 3, 4, 11, 32, 0),
- *     { addSuffix: true }
- *   ) //=> 'in about 1 hour'
- *
- *   // v2.0.0 onward
- *
- *   formatDistance(
- *     new Date(1986, 3, 4, 11, 32, 0),
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     { addSuffix: true }
- *   ) //=> 'in about 1 hour'
- *   ```
- *
- * @param {Date|Number} date - the date
- * @param {Date|Number} baseDate - the date to compare with
- * @param {Object} [options] - an object with options.
- * @param {Boolean} [options.includeSeconds=false] - distances less than a minute are more detailed
- * @param {Boolean} [options.addSuffix=false] - result indicates if the second date is earlier or later than the first
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {String} the distance in words
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.locale` must contain `formatDistance` property
- *
- * @example
- * // What is the distance between 2 July 2014 and 1 January 2015?
- * var result = formatDistance(new Date(2014, 6, 2), new Date(2015, 0, 1))
- * //=> '6 months'
- *
- * @example
- * // What is the distance between 1 January 2015 00:00:15
- * // and 1 January 2015 00:00:00, including seconds?
- * var result = formatDistance(
- *   new Date(2015, 0, 1, 0, 0, 15),
- *   new Date(2015, 0, 1, 0, 0, 0),
- *   { includeSeconds: true }
- * )
- * //=> 'less than 20 seconds'
- *
- * @example
- * // What is the distance from 1 January 2016
- * // to 1 January 2015, with a suffix?
- * var result = formatDistance(new Date(2015, 0, 1), new Date(2016, 0, 1), {
- *   addSuffix: true
- * })
- * //=> 'about 1 year ago'
- *
- * @example
- * // What is the distance between 1 August 2016 and 1 January 2015 in Esperanto?
- * import { eoLocale } from 'date-fns/locale/eo'
- * var result = formatDistance(new Date(2016, 7, 1), new Date(2015, 0, 1), {
- *   locale: eoLocale
- * })
- * //=> 'pli ol 1 jaro'
- */
-
-function formatDistance(dirtyDate, dirtyBaseDate, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale || _index7.default;
-
-  if (!locale.formatDistance) {
-    throw new RangeError('locale must contain formatDistance property');
-  }
-
-  var comparison = (0, _index2.default)(dirtyDate, dirtyBaseDate);
-
-  if (isNaN(comparison)) {
-    throw new RangeError('Invalid time value');
-  }
-
-  var localizeOptions = (0, _index6.default)(options);
-  localizeOptions.addSuffix = Boolean(options.addSuffix);
-  localizeOptions.comparison = comparison;
-  var dateLeft;
-  var dateRight;
-
-  if (comparison > 0) {
-    dateLeft = (0, _index3.default)(dirtyBaseDate);
-    dateRight = (0, _index3.default)(dirtyDate);
-  } else {
-    dateLeft = (0, _index3.default)(dirtyDate);
-    dateRight = (0, _index3.default)(dirtyBaseDate);
-  }
-
-  var seconds = (0, _index4.default)(dateRight, dateLeft);
-  var offsetInSeconds = ((0, _index.default)(dateRight) - (0, _index.default)(dateLeft)) / 1000;
-  var minutes = Math.round((seconds - offsetInSeconds) / 60);
-  var months; // 0 up to 2 mins
-
-  if (minutes < 2) {
-    if (options.includeSeconds) {
-      if (seconds < 5) {
-        return locale.formatDistance('lessThanXSeconds', 5, localizeOptions);
-      } else if (seconds < 10) {
-        return locale.formatDistance('lessThanXSeconds', 10, localizeOptions);
-      } else if (seconds < 20) {
-        return locale.formatDistance('lessThanXSeconds', 20, localizeOptions);
-      } else if (seconds < 40) {
-        return locale.formatDistance('halfAMinute', null, localizeOptions);
-      } else if (seconds < 60) {
-        return locale.formatDistance('lessThanXMinutes', 1, localizeOptions);
-      } else {
-        return locale.formatDistance('xMinutes', 1, localizeOptions);
-      }
-    } else {
-      if (minutes === 0) {
-        return locale.formatDistance('lessThanXMinutes', 1, localizeOptions);
-      } else {
-        return locale.formatDistance('xMinutes', minutes, localizeOptions);
-      }
-    } // 2 mins up to 0.75 hrs
-
-  } else if (minutes < 45) {
-    return locale.formatDistance('xMinutes', minutes, localizeOptions); // 0.75 hrs up to 1.5 hrs
-  } else if (minutes < 90) {
-    return locale.formatDistance('aboutXHours', 1, localizeOptions); // 1.5 hrs up to 24 hrs
-  } else if (minutes < MINUTES_IN_DAY) {
-    var hours = Math.round(minutes / 60);
-    return locale.formatDistance('aboutXHours', hours, localizeOptions); // 1 day up to 1.75 days
-  } else if (minutes < MINUTES_IN_ALMOST_TWO_DAYS) {
-    return locale.formatDistance('xDays', 1, localizeOptions); // 1.75 days up to 30 days
-  } else if (minutes < MINUTES_IN_MONTH) {
-    var days = Math.round(minutes / MINUTES_IN_DAY);
-    return locale.formatDistance('xDays', days, localizeOptions); // 1 month up to 2 months
-  } else if (minutes < MINUTES_IN_TWO_MONTHS) {
-    months = Math.round(minutes / MINUTES_IN_MONTH);
-    return locale.formatDistance('aboutXMonths', months, localizeOptions);
-  }
-
-  months = (0, _index5.default)(dateRight, dateLeft); // 2 months up to 12 months
-
-  if (months < 12) {
-    var nearestMonth = Math.round(minutes / MINUTES_IN_MONTH);
-    return locale.formatDistance('xMonths', nearestMonth, localizeOptions); // 1 year up to max Date
-  } else {
-    var monthsSinceStartOfYear = months % 12;
-    var years = Math.floor(months / 12); // N years up to 1 years 3 months
-
-    if (monthsSinceStartOfYear < 3) {
-      return locale.formatDistance('aboutXYears', years, localizeOptions); // N years 3 months up to N years 9 months
-    } else if (monthsSinceStartOfYear < 9) {
-      return locale.formatDistance('overXYears', years, localizeOptions); // N years 9 months up to N year 12 months
-    } else {
-      return locale.formatDistance('almostXYears', years + 1, localizeOptions);
-    }
-  }
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInSeconds/index.js":"../node_modules/date-fns/esm/differenceInSeconds/index.js","../differenceInMonths/index.js":"../node_modules/date-fns/esm/differenceInMonths/index.js","../_lib/cloneObject/index.js":"../node_modules/date-fns/esm/_lib/cloneObject/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js"}],"../node_modules/date-fns/esm/formatDistanceStrict/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = formatDistanceStrict;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../compareAsc/index.js"));
-
-var _index3 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index4 = _interopRequireDefault(require("../differenceInSeconds/index.js"));
-
-var _index5 = _interopRequireDefault(require("../_lib/cloneObject/index.js"));
-
-var _index6 = _interopRequireDefault(require("../locale/en-US/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MINUTES_IN_DAY = 1440;
-var MINUTES_IN_MONTH = 43200;
-var MINUTES_IN_YEAR = 525600;
-/**
- * @name formatDistanceStrict
- * @category Common Helpers
- * @summary Return the distance between the given dates in words.
- *
- * @description
- * Return the distance between the given dates in words, using strict units.
- * This is like `formatDistance`, but does not use helpers like 'almost', 'over',
- * 'less than' and the like.
- *
- * | Distance between dates | Result              |
- * |------------------------|---------------------|
- * | 0 ... 59 secs          | [0..59] seconds     |
- * | 1 ... 59 mins          | [1..59] minutes     |
- * | 1 ... 23 hrs           | [1..23] hours       |
- * | 1 ... 29 days          | [1..29] days        |
- * | 1 ... 11 months        | [1..11] months      |
- * | 1 ... N years          | [1..N]  years       |
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `distanceInWordsStrict` to `formatDistanceStrict`
- *   to make its name consistent with `format` and `formatRelative`.
- *
- * - The order of arguments is swapped to make the function
- *   consistent with `differenceIn...` functions.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   distanceInWordsStrict(
- *     new Date(2015, 0, 2),
- *     new Date(2014, 6, 2)
- *   ) //=> '6 months'
- *
- *   // v2.0.0 onward
- *
- *   formatDistanceStrict(
- *     new Date(2014, 6, 2),
- *     new Date(2015, 0, 2)
- *   ) //=> '6 months'
- *   ```
- *
- * - `partialMethod` option is renamed to `roundingMethod`.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   distanceInWordsStrict(
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     new Date(1986, 3, 4, 10, 33, 1),
- *     { partialMethod: 'ceil' }
- *   ) //=> '2 minutes'
- *
- *   // v2.0.0 onward
- *
- *   formatDistanceStrict(
- *     new Date(1986, 3, 4, 10, 33, 1),
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     { roundingMethod: 'ceil' }
- *   ) //=> '2 minutes'
- *   ```
- *
- * - If `roundingMethod` is not specified, it now defaults to `round` instead of `floor`.
- *
- * - `unit` option now accepts one of the strings:
- *   'second', 'minute', 'hour', 'day', 'month' or 'year' instead of 's', 'm', 'h', 'd', 'M' or 'Y'
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   distanceInWordsStrict(
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     new Date(1986, 3, 4, 10, 33, 1),
- *     { unit: 'm' }
- *   )
- *
- *   // v2.0.0 onward
- *
- *   formatDistanceStrict(
- *     new Date(1986, 3, 4, 10, 33, 1),
- *     new Date(1986, 3, 4, 10, 32, 0),
- *     { unit: 'minute' }
- *   )
- *   ```
- *
- * @param {Date|Number} date - the date
- * @param {Date|Number} baseDate - the date to compare with
- * @param {Object} [options] - an object with options.
- * @param {Boolean} [options.addSuffix=false] - result indicates if the second date is earlier or later than the first
- * @param {'second'|'minute'|'hour'|'day'|'month'|'year'} [options.unit] - if specified, will force a unit
- * @param {'floor'|'ceil'|'round'} [options.roundingMethod='round'] - which way to round partial units
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {String} the distance in words
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.roundingMethod` must be 'floor', 'ceil' or 'round'
- * @throws {RangeError} `options.unit` must be 'second', 'minute', 'hour', 'day', 'month' or 'year'
- * @throws {RangeError} `options.locale` must contain `formatDistance` property
- *
- * @example
- * // What is the distance between 2 July 2014 and 1 January 2015?
- * var result = formatDistanceStrict(new Date(2014, 6, 2), new Date(2015, 0, 2))
- * //=> '6 months'
- *
- * @example
- * // What is the distance between 1 January 2015 00:00:15
- * // and 1 January 2015 00:00:00?
- * var result = formatDistanceStrict(
- *   new Date(2015, 0, 1, 0, 0, 15),
- *   new Date(2015, 0, 1, 0, 0, 0)
- * )
- * //=> '15 seconds'
- *
- * @example
- * // What is the distance from 1 January 2016
- * // to 1 January 2015, with a suffix?
- * var result = formatDistanceStrict(new Date(2015, 0, 1), new Date(2016, 0, 1), {
- *   addSuffix: true
- * })
- * //=> '1 year ago'
- *
- * @example
- * // What is the distance from 1 January 2016
- * // to 1 January 2015, in minutes?
- * var result = formatDistanceStrict(new Date(2016, 0, 1), new Date(2015, 0, 1), {
- *   unit: 'minute'
- * })
- * //=> '525600 minutes'
- *
- * @example
- * // What is the distance from 1 January 2016
- * // to 28 January 2015, in months, rounded up?
- * var result = formatDistanceStrict(new Date(2015, 0, 28), new Date(2015, 0, 1), {
- *   unit: 'month',
- *   roundingMethod: 'ceil'
- * })
- * //=> '1 month'
- *
- * @example
- * // What is the distance between 1 August 2016 and 1 January 2015 in Esperanto?
- * import { eoLocale } from 'date-fns/locale/eo'
- * var result = formatDistanceStrict(new Date(2016, 7, 1), new Date(2015, 0, 1), {
- *   locale: eoLocale
- * })
- * //=> '1 jaro'
- */
-
-function formatDistanceStrict(dirtyDate, dirtyBaseDate, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale || _index6.default;
-
-  if (!locale.formatDistance) {
-    throw new RangeError('locale must contain localize.formatDistance property');
-  }
-
-  var comparison = (0, _index2.default)(dirtyDate, dirtyBaseDate);
-
-  if (isNaN(comparison)) {
-    throw new RangeError('Invalid time value');
-  }
-
-  var localizeOptions = (0, _index5.default)(options);
-  localizeOptions.addSuffix = Boolean(options.addSuffix);
-  localizeOptions.comparison = comparison;
-  var dateLeft;
-  var dateRight;
-
-  if (comparison > 0) {
-    dateLeft = (0, _index3.default)(dirtyBaseDate);
-    dateRight = (0, _index3.default)(dirtyDate);
-  } else {
-    dateLeft = (0, _index3.default)(dirtyDate);
-    dateRight = (0, _index3.default)(dirtyBaseDate);
-  }
-
-  var roundingMethod = options.roundingMethod == null ? 'round' : String(options.roundingMethod);
-  var roundingMethodFn;
-
-  if (roundingMethod === 'floor') {
-    roundingMethodFn = Math.floor;
-  } else if (roundingMethod === 'ceil') {
-    roundingMethodFn = Math.ceil;
-  } else if (roundingMethod === 'round') {
-    roundingMethodFn = Math.round;
-  } else {
-    throw new RangeError("roundingMethod must be 'floor', 'ceil' or 'round'");
-  }
-
-  var seconds = (0, _index4.default)(dateRight, dateLeft);
-  var offsetInSeconds = ((0, _index.default)(dateRight) - (0, _index.default)(dateLeft)) / 1000;
-  var minutes = roundingMethodFn((seconds - offsetInSeconds) / 60);
-  var unit;
-
-  if (options.unit == null) {
-    if (minutes < 1) {
-      unit = 'second';
-    } else if (minutes < 60) {
-      unit = 'minute';
-    } else if (minutes < MINUTES_IN_DAY) {
-      unit = 'hour';
-    } else if (minutes < MINUTES_IN_MONTH) {
-      unit = 'day';
-    } else if (minutes < MINUTES_IN_YEAR) {
-      unit = 'month';
-    } else {
-      unit = 'year';
-    }
-  } else {
-    unit = String(options.unit);
-  } // 0 up to 60 seconds
-
-
-  if (unit === 'second') {
-    return locale.formatDistance('xSeconds', seconds, localizeOptions); // 1 up to 60 mins
-  } else if (unit === 'minute') {
-    return locale.formatDistance('xMinutes', minutes, localizeOptions); // 1 up to 24 hours
-  } else if (unit === 'hour') {
-    var hours = roundingMethodFn(minutes / 60);
-    return locale.formatDistance('xHours', hours, localizeOptions); // 1 up to 30 days
-  } else if (unit === 'day') {
-    var days = roundingMethodFn(minutes / MINUTES_IN_DAY);
-    return locale.formatDistance('xDays', days, localizeOptions); // 1 up to 12 months
-  } else if (unit === 'month') {
-    var months = roundingMethodFn(minutes / MINUTES_IN_MONTH);
-    return locale.formatDistance('xMonths', months, localizeOptions); // 1 year up to max Date
-  } else if (unit === 'year') {
-    var years = roundingMethodFn(minutes / MINUTES_IN_YEAR);
-    return locale.formatDistance('xYears', years, localizeOptions);
-  }
-
-  throw new RangeError("unit must be 'second', 'minute', 'hour', 'day', 'month' or 'year'");
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../differenceInSeconds/index.js":"../node_modules/date-fns/esm/differenceInSeconds/index.js","../_lib/cloneObject/index.js":"../node_modules/date-fns/esm/_lib/cloneObject/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js"}],"../node_modules/date-fns/esm/formatRelative/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = formatRelative;
-
-var _index = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../format/index.js"));
-
-var _index4 = _interopRequireDefault(require("../differenceInCalendarDays/index.js"));
-
-var _index5 = _interopRequireDefault(require("../locale/en-US/index.js"));
-
-var _index6 = _interopRequireDefault(require("../subMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name formatRelative
- * @category Common Helpers
- * @summary Represent the date in words relative to the given base date.
- *
- * @description
- * Represent the date in words relative to the given base date.
- *
- * | Distance to the base date | Result                    |
- * |---------------------------|---------------------------|
- * | Previous 6 days           | last Sunday at 04:30 AM   |
- * | Last day                  | yesterday at 04:30 AM     |
- * | Same day                  | today at 04:30 AM         |
- * | Next day                  | tomorrow at 04:30 AM      |
- * | Next 6 days               | Sunday at 04:30 AM        |
- * | Other                     | 12/31/2017                |
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to format
- * @param {Date|Number} baseDate - the date to compare with
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {String} the date in words
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.locale` must contain `localize` property
- * @throws {RangeError} `options.locale` must contain `formatLong` property
- * @throws {RangeError} `options.locale` must contain `formatRelative` property
- */
-function formatRelative(dirtyDate, dirtyBaseDate, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var baseDate = (0, _index2.default)(dirtyBaseDate);
-  var options = dirtyOptions || {};
-  var locale = options.locale || _index5.default;
-
-  if (!locale.localize) {
-    throw new RangeError('locale must contain localize property');
-  }
-
-  if (!locale.formatLong) {
-    throw new RangeError('locale must contain formatLong property');
-  }
-
-  if (!locale.formatRelative) {
-    throw new RangeError('locale must contain formatRelative property');
-  }
-
-  var diff = (0, _index4.default)(date, baseDate);
-
-  if (isNaN(diff)) {
-    throw new RangeError('Invalid time value');
-  }
-
-  var token;
-
-  if (diff < -6) {
-    token = 'other';
-  } else if (diff < -1) {
-    token = 'lastWeek';
-  } else if (diff < 0) {
-    token = 'yesterday';
-  } else if (diff < 1) {
-    token = 'today';
-  } else if (diff < 2) {
-    token = 'tomorrow';
-  } else if (diff < 7) {
-    token = 'nextWeek';
-  } else {
-    token = 'other';
-  }
-
-  var utcDate = (0, _index6.default)(date, (0, _index.default)(date));
-  var utcBaseDate = (0, _index6.default)(baseDate, (0, _index.default)(baseDate));
-  var formatStr = locale.formatRelative(token, utcDate, utcBaseDate, options);
-  return (0, _index3.default)(date, formatStr, options);
-}
-},{"../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../format/index.js":"../node_modules/date-fns/esm/format/index.js","../differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js"}],"../node_modules/date-fns/esm/fromUnixTime/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = fromUnixTime;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name fromUnixTime
- * @category Timestamp Helpers
- * @summary Create a date from a Unix timestamp.
- *
- * @description
- * Create a date from a Unix timestamp.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Number} unixTime - the given Unix timestamp
- * @returns {Date} the date
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Create the date 29 February 2012 11:45:05:
- * var result = fromUnixTime(1330515905)
- * //=> Wed Feb 29 2012 11:45:05
- */
-function fromUnixTime(dirtyUnixTime) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var unixTime = (0, _index2.default)(dirtyUnixTime);
-  return (0, _index.default)(unixTime * 1000);
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js"}],"../node_modules/date-fns/esm/getDate/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getDate;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getDate
- * @category Day Helpers
- * @summary Get the day of the month of the given date.
- *
- * @description
- * Get the day of the month of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the day of month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which day of the month is 29 February 2012?
- * var result = getDate(new Date(2012, 1, 29))
- * //=> 29
- */
-function getDate(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var dayOfMonth = date.getDate();
-  return dayOfMonth;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getDay/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getDay;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getDay
- * @category Weekday Helpers
- * @summary Get the day of the week of the given date.
- *
- * @description
- * Get the day of the week of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the day of week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which day of the week is 29 February 2012?
- * var result = getDay(new Date(2012, 1, 29))
- * //=> 3
- */
-function getDay(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var day = date.getDay();
-  return day;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getDayOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getDayOfYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfYear/index.js"));
-
-var _index3 = _interopRequireDefault(require("../differenceInCalendarDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getDayOfYear
- * @category Day Helpers
- * @summary Get the day of the year of the given date.
- *
- * @description
- * Get the day of the year of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the day of year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which day of the year is 2 July 2014?
- * var result = getDayOfYear(new Date(2014, 6, 2))
- * //=> 183
- */
-function getDayOfYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var diff = (0, _index3.default)(date, (0, _index2.default)(date));
-  var dayOfYear = diff + 1;
-  return dayOfYear;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfYear/index.js":"../node_modules/date-fns/esm/startOfYear/index.js","../differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js"}],"../node_modules/date-fns/esm/isLeapYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isLeapYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isLeapYear
- * @category Year Helpers
- * @summary Is the given date in the leap year?
- *
- * @description
- * Is the given date in the leap year?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is in the leap year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 1 September 2012 in the leap year?
- * var result = isLeapYear(new Date(2012, 8, 1))
- * //=> true
- */
-function isLeapYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  return year % 400 === 0 || year % 4 === 0 && year % 100 !== 0;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getDaysInYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getDaysInYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../isLeapYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getDaysInYear
- * @category Year Helpers
- * @summary Get the number of days in a year of the given date.
- *
- * @description
- * Get the number of days in a year of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the number of days in a year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // How many days are in 2012?
- * var result = getDaysInYear(new Date(2012, 0, 1))
- * //=> 366
- */
-function getDaysInYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-
-  if (isNaN(date)) {
-    return NaN;
-  }
-
-  return (0, _index2.default)(date) ? 366 : 365;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../isLeapYear/index.js":"../node_modules/date-fns/esm/isLeapYear/index.js"}],"../node_modules/date-fns/esm/getDecade/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getDecade;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getDecade
- * @category Decade Helpers
- * @summary Get the decade of the given date.
- *
- * @description
- * Get the decade of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the year of decade
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which decade belongs 27 November 1942?
- * var result = getDecade(new Date(1942, 10, 27))
- * //=> 1940
- */
-function getDecade(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  var decade = Math.floor(year / 10) * 10;
-  return decade;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getHours/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../isValid/index.js":"../node_modules/date-fns/esm/isValid/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js","../_lib/format/formatters/index.js":"../node_modules/date-fns/esm/_lib/format/formatters/index.js","../_lib/format/longFormatters/index.js":"../node_modules/date-fns/esm/_lib/format/longFormatters/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js","../_lib/protectedTokens/index.js":"../node_modules/date-fns/esm/_lib/protectedTokens/index.js"}],"../node_modules/date-fns/esm/getHours/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -53128,393 +49446,6 @@ function getHours(dirtyDate) {
   var date = (0, _index.default)(dirtyDate);
   var hours = date.getHours();
   return hours;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getISODay/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getISODay;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getISODay
- * @category Weekday Helpers
- * @summary Get the day of the ISO week of the given date.
- *
- * @description
- * Get the day of the ISO week of the given date,
- * which is 7 for Sunday, 1 for Monday etc.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the day of ISO week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which day of the ISO week is 26 February 2012?
- * var result = getISODay(new Date(2012, 1, 26))
- * //=> 7
- */
-function getISODay(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var day = date.getDay();
-
-  if (day === 0) {
-    day = 7;
-  }
-
-  return day;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getISOWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getISOWeek;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfISOWeekYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_WEEK = 604800000;
-/**
- * @name getISOWeek
- * @category ISO Week Helpers
- * @summary Get the ISO week of the given date.
- *
- * @description
- * Get the ISO week of the given date.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the ISO week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which week of the ISO-week numbering year is 2 January 2005?
- * var result = getISOWeek(new Date(2005, 0, 2))
- * //=> 53
- */
-
-function getISOWeek(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var diff = (0, _index2.default)(date).getTime() - (0, _index3.default)(date).getTime(); // Round the number of days to the nearest integer
-  // because the number of milliseconds in a week is not constant
-  // (e.g. it's different in the week of the daylight saving time clock shift)
-
-  return Math.round(diff / MILLISECONDS_IN_WEEK) + 1;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js","../startOfISOWeekYear/index.js":"../node_modules/date-fns/esm/startOfISOWeekYear/index.js"}],"../node_modules/date-fns/esm/getISOWeeksInYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getISOWeeksInYear;
-
-var _index = _interopRequireDefault(require("../startOfISOWeekYear/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addWeeks/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_WEEK = 604800000;
-/**
- * @name getISOWeeksInYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Get the number of weeks in an ISO week-numbering year of the given date.
- *
- * @description
- * Get the number of weeks in an ISO week-numbering year of the given date.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the number of ISO weeks in a year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // How many weeks are in ISO week-numbering year 2015?
- * var result = getISOWeeksInYear(new Date(2015, 1, 11))
- * //=> 53
- */
-
-function getISOWeeksInYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var thisYear = (0, _index.default)(dirtyDate);
-  var nextYear = (0, _index.default)((0, _index2.default)(thisYear, 60));
-  var diff = nextYear.valueOf() - thisYear.valueOf(); // Round the number of weeks to the nearest integer
-  // because the number of milliseconds in a week is not constant
-  // (e.g. it's different in the week of the daylight saving time clock shift)
-
-  return Math.round(diff / MILLISECONDS_IN_WEEK);
-}
-},{"../startOfISOWeekYear/index.js":"../node_modules/date-fns/esm/startOfISOWeekYear/index.js","../addWeeks/index.js":"../node_modules/date-fns/esm/addWeeks/index.js"}],"../node_modules/date-fns/esm/getMilliseconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getMilliseconds;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getMilliseconds
- * @category Millisecond Helpers
- * @summary Get the milliseconds of the given date.
- *
- * @description
- * Get the milliseconds of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the milliseconds
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Get the milliseconds of 29 February 2012 11:45:05.123:
- * var result = getMilliseconds(new Date(2012, 1, 29, 11, 45, 5, 123))
- * //=> 123
- */
-function getMilliseconds(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var milliseconds = date.getMilliseconds();
-  return milliseconds;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getMinutes/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getMinutes;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getMinutes
- * @category Minute Helpers
- * @summary Get the minutes of the given date.
- *
- * @description
- * Get the minutes of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the minutes
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Get the minutes of 29 February 2012 11:45:05:
- * var result = getMinutes(new Date(2012, 1, 29, 11, 45, 5))
- * //=> 45
- */
-function getMinutes(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var minutes = date.getMinutes();
-  return minutes;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getMonth
- * @category Month Helpers
- * @summary Get the month of the given date.
- *
- * @description
- * Get the month of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which month is 29 February 2012?
- * var result = getMonth(new Date(2012, 1, 29))
- * //=> 1
- */
-function getMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var month = date.getMonth();
-  return month;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getOverlappingDaysInIntervals/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getOverlappingDaysInIntervals;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
-/**
- * @name getOverlappingDaysInIntervals
- * @category Interval Helpers
- * @summary Get the number of days that overlap in two time intervals
- *
- * @description
- * Get the number of days that overlap in two time intervals
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `getOverlappingDaysInRanges` to `getOverlappingDaysInIntervals`.
- *   This change was made to mirror the use of the word "interval" in standard ISO 8601:2004 terminology:
- *
- *   ```
- *   2.1.3
- *   time interval
- *   part of the time axis limited by two instants
- *   ```
- *
- *   Also, this function now accepts an object with `start` and `end` properties
- *   instead of two arguments as an interval.
- *   This function now throws `RangeError` if the start of the interval is after its end
- *   or if any date in the interval is `Invalid Date`.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   getOverlappingDaysInRanges(
- *     new Date(2014, 0, 10), new Date(2014, 0, 20),
- *     new Date(2014, 0, 17), new Date(2014, 0, 21)
- *   )
- *
- *   // v2.0.0 onward
- *
- *   getOverlappingDaysInIntervals(
- *     { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *     { start: new Date(2014, 0, 17), end: new Date(2014, 0, 21) }
- *   )
- *   ```
- *
- * @param {Interval} intervalLeft - the first interval to compare. See [Interval]{@link docs/Interval}
- * @param {Interval} intervalRight - the second interval to compare. See [Interval]{@link docs/Interval}
- * @returns {Number} the number of days that overlap in two time intervals
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} The start of an interval cannot be after its end
- * @throws {RangeError} Date in interval cannot be `Invalid Date`
- *
- * @example
- * // For overlapping time intervals adds 1 for each started overlapping day:
- * getOverlappingDaysInIntervals(
- *   { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *   { start: new Date(2014, 0, 17), end: new Date(2014, 0, 21) }
- * )
- * //=> 3
- *
- * @example
- * // For non-overlapping time intervals returns 0:
- * getOverlappingDaysInIntervals(
- *   { start: new Date(2014, 0, 10), end: new Date(2014, 0, 20) },
- *   { start: new Date(2014, 0, 21), end: new Date(2014, 0, 22) }
- * )
- * //=> 0
- */
-
-function getOverlappingDaysInIntervals(dirtyIntervalLeft, dirtyIntervalRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var intervalLeft = dirtyIntervalLeft || {};
-  var intervalRight = dirtyIntervalRight || {};
-  var leftStartTime = (0, _index.default)(intervalLeft.start).getTime();
-  var leftEndTime = (0, _index.default)(intervalLeft.end).getTime();
-  var rightStartTime = (0, _index.default)(intervalRight.start).getTime();
-  var rightEndTime = (0, _index.default)(intervalRight.end).getTime(); // Throw an exception if start date is after end date or if any date is `Invalid Date`
-
-  if (!(leftStartTime <= leftEndTime && rightStartTime <= rightEndTime)) {
-    throw new RangeError('Invalid interval');
-  }
-
-  var isOverlapping = leftStartTime < rightEndTime && rightStartTime < leftEndTime;
-
-  if (!isOverlapping) {
-    return 0;
-  }
-
-  var overlapStartDate = rightStartTime < leftStartTime ? leftStartTime : rightStartTime;
-  var overlapEndDate = rightEndTime > leftEndTime ? leftEndTime : rightEndTime;
-  var differenceInMs = overlapEndDate - overlapStartDate;
-  return Math.ceil(differenceInMs / MILLISECONDS_IN_DAY);
 }
 },{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getSeconds/index.js":[function(require,module,exports) {
 "use strict";
@@ -53558,489 +49489,7 @@ function getSeconds(dirtyDate) {
   var seconds = date.getSeconds();
   return seconds;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getTime/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getTime;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getTime
- * @category Timestamp Helpers
- * @summary Get the milliseconds timestamp of the given date.
- *
- * @description
- * Get the milliseconds timestamp of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the timestamp
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Get the timestamp of 29 February 2012 11:45:05.123:
- * var result = getTime(new Date(2012, 1, 29, 11, 45, 5, 123))
- * //=> 1330515905123
- */
-function getTime(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var timestamp = date.getTime();
-  return timestamp;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getUnixTime/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getUnixTime;
-
-var _index = _interopRequireDefault(require("../getTime/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getUnixTime
- * @category Timestamp Helpers
- * @summary Get the seconds timestamp of the given date.
- *
- * @description
- * Get the seconds timestamp of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @returns {Number} the timestamp
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Get the timestamp of 29 February 2012 11:45:05 CET:
- * var result = getUnixTime(new Date(2012, 1, 29, 11, 45, 5))
- * //=> 1330512305
- */
-function getUnixTime(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return Math.floor((0, _index.default)(dirtyDate) / 1000);
-}
-},{"../getTime/index.js":"../node_modules/date-fns/esm/getTime/index.js"}],"../node_modules/date-fns/esm/getWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getWeekYear;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getWeekYear
- * @category Week-Numbering Year Helpers
- * @summary Get the local week-numbering year of the given date.
- *
- * @description
- * Get the local week-numbering year of the given date.
- * The exact calculation depends on the values of
- * `options.weekStartsOn` (which is the index of the first day of the week)
- * and `options.firstWeekContainsDate` (which is the day of January, which is always in
- * the first week of the week-numbering year)
- *
- * Week numbering: https://en.wikipedia.org/wiki/Week#Week_numbering
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {1|2|3|4|5|6|7} [options.firstWeekContainsDate=1] - the day of January, which is always in the first week of the year
- * @returns {Number} the local week-numbering year
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.firstWeekContainsDate` must be between 1 and 7
- *
- * @example
- * // Which week numbering year is 26 December 2004 with the default settings?
- * var result = getWeekYear(new Date(2004, 11, 26))
- * //=> 2005
- *
- * @example
- * // Which week numbering year is 26 December 2004 if week starts on Saturday?
- * var result = getWeekYear(new Date(2004, 11, 26), { weekStartsOn: 6 })
- * //=> 2004
- *
- * @example
- * // Which week numbering year is 26 December 2004 if the first week contains 4 January?
- * var result = getWeekYear(new Date(2004, 11, 26), { firstWeekContainsDate: 4 })
- * //=> 2004
- */
-function getWeekYear(dirtyDate, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var year = date.getFullYear();
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeFirstWeekContainsDate = locale && locale.options && locale.options.firstWeekContainsDate;
-  var defaultFirstWeekContainsDate = localeFirstWeekContainsDate == null ? 1 : (0, _index.default)(localeFirstWeekContainsDate);
-  var firstWeekContainsDate = options.firstWeekContainsDate == null ? defaultFirstWeekContainsDate : (0, _index.default)(options.firstWeekContainsDate); // Test if weekStartsOn is between 1 and 7 _and_ is not NaN
-
-  if (!(firstWeekContainsDate >= 1 && firstWeekContainsDate <= 7)) {
-    throw new RangeError('firstWeekContainsDate must be between 1 and 7 inclusively');
-  }
-
-  var firstWeekOfNextYear = new Date(0);
-  firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
-  firstWeekOfNextYear.setHours(0, 0, 0, 0);
-  var startOfNextYear = (0, _index3.default)(firstWeekOfNextYear, dirtyOptions);
-  var firstWeekOfThisYear = new Date(0);
-  firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
-  firstWeekOfThisYear.setHours(0, 0, 0, 0);
-  var startOfThisYear = (0, _index3.default)(firstWeekOfThisYear, dirtyOptions);
-
-  if (date.getTime() >= startOfNextYear.getTime()) {
-    return year + 1;
-  } else if (date.getTime() >= startOfThisYear.getTime()) {
-    return year;
-  } else {
-    return year - 1;
-  }
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js"}],"../node_modules/date-fns/esm/startOfWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfWeekYear;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../getWeekYear/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfWeekYear
- * @category Week-Numbering Year Helpers
- * @summary Return the start of a local week-numbering year for the given date.
- *
- * @description
- * Return the start of a local week-numbering year.
- * The exact calculation depends on the values of
- * `options.weekStartsOn` (which is the index of the first day of the week)
- * and `options.firstWeekContainsDate` (which is the day of January, which is always in
- * the first week of the week-numbering year)
- *
- * Week numbering: https://en.wikipedia.org/wiki/Week#Week_numbering
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {1|2|3|4|5|6|7} [options.firstWeekContainsDate=1] - the day of January, which is always in the first week of the year
- * @returns {Date} the start of a week-numbering year
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.firstWeekContainsDate` must be between 1 and 7
- *
- * @example
- * // The start of an a week-numbering year for 2 July 2005 with default settings:
- * var result = startOfWeekYear(new Date(2005, 6, 2))
- * //=> Sun Dec 26 2004 00:00:00
- *
- * @example
- * // The start of a week-numbering year for 2 July 2005
- * // if Monday is the first day of week
- * // and 4 January is always in the first week of the year:
- * var result = startOfWeekYear(new Date(2005, 6, 2), {
- *   weekStartsOn: 1,
- *   firstWeekContainsDate: 4
- * })
- * //=> Mon Jan 03 2005 00:00:00
- */
-function startOfWeekYear(dirtyDate, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeFirstWeekContainsDate = locale && locale.options && locale.options.firstWeekContainsDate;
-  var defaultFirstWeekContainsDate = localeFirstWeekContainsDate == null ? 1 : (0, _index.default)(localeFirstWeekContainsDate);
-  var firstWeekContainsDate = options.firstWeekContainsDate == null ? defaultFirstWeekContainsDate : (0, _index.default)(options.firstWeekContainsDate);
-  var year = (0, _index2.default)(dirtyDate, dirtyOptions);
-  var firstWeek = new Date(0);
-  firstWeek.setFullYear(year, 0, firstWeekContainsDate);
-  firstWeek.setHours(0, 0, 0, 0);
-  var date = (0, _index3.default)(firstWeek, dirtyOptions);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../getWeekYear/index.js":"../node_modules/date-fns/esm/getWeekYear/index.js","../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js"}],"../node_modules/date-fns/esm/getWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getWeek;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfWeekYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_WEEK = 604800000;
-/**
- * @name getWeek
- * @category Week Helpers
- * @summary Get the local week index of the given date.
- *
- * @description
- * Get the local week index of the given date.
- * The exact calculation depends on the values of
- * `options.weekStartsOn` (which is the index of the first day of the week)
- * and `options.firstWeekContainsDate` (which is the day of January, which is always in
- * the first week of the week-numbering year)
- *
- * Week numbering: https://en.wikipedia.org/wiki/Week#Week_numbering
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {1|2|3|4|5|6|7} [options.firstWeekContainsDate=1] - the day of January, which is always in the first week of the year
- * @returns {Number} the week
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.firstWeekContainsDate` must be between 1 and 7
- *
- * @example
- * // Which week of the local week numbering year is 2 January 2005 with default options?
- * var result = getISOWeek(new Date(2005, 0, 2))
- * //=> 2
- *
- * // Which week of the local week numbering year is 2 January 2005,
- * // if Monday is the first day of the week,
- * // and the first week of the year always contains 4 January?
- * var result = getISOWeek(new Date(2005, 0, 2), {
- *   weekStartsOn: 1,
- *   firstWeekContainsDate: 4
- * })
- * //=> 53
- */
-
-function getWeek(dirtyDate, options) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var diff = (0, _index2.default)(date, options).getTime() - (0, _index3.default)(date, options).getTime(); // Round the number of days to the nearest integer
-  // because the number of milliseconds in a week is not constant
-  // (e.g. it's different in the week of the daylight saving time clock shift)
-
-  return Math.round(diff / MILLISECONDS_IN_WEEK) + 1;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js","../startOfWeekYear/index.js":"../node_modules/date-fns/esm/startOfWeekYear/index.js"}],"../node_modules/date-fns/esm/getWeekOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getWeekOfMonth;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../getDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfMonth/index.js"));
-
-var _index4 = _interopRequireDefault(require("../getDay/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getWeekOfMonth
- * @category Week Helpers
- * @summary Get the week of the month of the given date.
- *
- * @description
- * Get the week of the month of the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @returns {Number} the week of month
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // Which week of the month is 9 November 2017?
- * var result = getWeekOfMonth(new Date(2017, 10, 9))
- * //=> 2
- */
-function getWeekOfMonth(date, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeWeekStartsOn = locale && locale.options && locale.options.weekStartsOn;
-  var defaultWeekStartsOn = localeWeekStartsOn == null ? 0 : (0, _index.default)(localeWeekStartsOn);
-  var weekStartsOn = options.weekStartsOn == null ? defaultWeekStartsOn : (0, _index.default)(options.weekStartsOn); // Test if weekStartsOn is between 0 and 6 _and_ is not NaN
-
-  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
-    throw new RangeError('weekStartsOn must be between 0 and 6 inclusively');
-  }
-
-  var startWeekDay = (0, _index4.default)((0, _index3.default)(date));
-  var currentWeekDay = (0, _index4.default)(date);
-  var startWeekDayWithOptions = startWeekDay < weekStartsOn ? 7 - weekStartsOn : startWeekDay;
-  var diff = startWeekDayWithOptions > currentWeekDay ? 7 - weekStartsOn : 0;
-  return Math.ceil(((0, _index2.default)(date) + diff) / 7);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../getDate/index.js":"../node_modules/date-fns/esm/getDate/index.js","../startOfMonth/index.js":"../node_modules/date-fns/esm/startOfMonth/index.js","../getDay/index.js":"../node_modules/date-fns/esm/getDay/index.js"}],"../node_modules/date-fns/esm/lastDayOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfMonth
- * @category Month Helpers
- * @summary Return the last day of a month for the given date.
- *
- * @description
- * Return the last day of a month for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the last day of a month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The last day of a month for 2 September 2014 11:55:00:
- * var result = lastDayOfMonth(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Sep 30 2014 00:00:00
- */
-function lastDayOfMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var month = date.getMonth();
-  date.setFullYear(date.getFullYear(), month + 1, 0);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getWeeksInMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = getWeeksInMonth;
-
-var _index = _interopRequireDefault(require("../differenceInCalendarWeeks/index.js"));
-
-var _index2 = _interopRequireDefault(require("../lastDayOfMonth/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfMonth/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name getWeeksInMonth
- * @category Week Helpers
- * @summary Get the number of calendar weeks a month spans.
- *
- * @description
- * Get the number of calendar weeks the month in the given date spans.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the given date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Number} the number of calendar weeks
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // How many calendar weeks does February 2015 span?
- * var result = getWeeksInMonth(new Date(2015, 1, 8))
- * //=> 4
- *
- * @example
- * // If the week starts on Monday,
- * // how many calendar weeks does July 2017 span?
- * var result = getWeeksInMonth(new Date(2017, 6, 5), { weekStartsOn: 1 })
- * //=> 6
- */
-function getWeeksInMonth(date, options) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)((0, _index2.default)(date), (0, _index3.default)(date), options) + 1;
-}
-},{"../differenceInCalendarWeeks/index.js":"../node_modules/date-fns/esm/differenceInCalendarWeeks/index.js","../lastDayOfMonth/index.js":"../node_modules/date-fns/esm/lastDayOfMonth/index.js","../startOfMonth/index.js":"../node_modules/date-fns/esm/startOfMonth/index.js"}],"../node_modules/date-fns/esm/getYear/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/getYear/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -54168,58 +49617,7 @@ function isBefore(dirtyDate, dirtyDateToCompare) {
   var dateToCompare = (0, _index.default)(dirtyDateToCompare);
   return date.getTime() < dateToCompare.getTime();
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isDate/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isDate;
-
-/**
- * @name isDate
- * @category Common Helpers
- * @summary Is the given value a date?
- *
- * @description
- * Returns true if the given value is an instance of Date. The function works for dates transferred across iframes.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {*} value - the value to check
- * @returns {boolean} true if the given value is a date
- * @throws {TypeError} 1 arguments required
- *
- * @example
- * // For a valid date:
- * var result = isDate(new Date())
- * //=> true
- *
- * @example
- * // For an invalid date:
- * var result = isDate(new Date(NaN))
- * //=> true
- *
- * @example
- * // For some value:
- * var result = isDate('2014-02-31')
- * //=> false
- *
- * @example
- * // For an object:
- * var result = isDate({})
- * //=> false
- */
-function isDate(value) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return value instanceof Date || typeof value === 'object' && Object.prototype.toString.call(value) === '[object Date]';
-}
-},{}],"../node_modules/date-fns/esm/isEqual/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isEqual/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -54265,170 +49663,48 @@ function isEqual(dirtyLeftDate, dirtyRightDate) {
   var dateRight = (0, _index.default)(dirtyRightDate);
   return dateLeft.getTime() === dateRight.getTime();
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isFirstDayOfMonth/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfDay/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = isFirstDayOfMonth;
+exports.default = startOfDay;
 
 var _index = _interopRequireDefault(require("../toDate/index.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
- * @name isFirstDayOfMonth
- * @category Month Helpers
- * @summary Is the given date the first day of a month?
+ * @name startOfDay
+ * @category Day Helpers
+ * @summary Return the start of a day for the given date.
  *
  * @description
- * Is the given date the first day of a month?
+ * Return the start of a day for the given date.
+ * The result will be in the local timezone.
  *
  * ### v2.0.0 breaking changes:
  *
  * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
  *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is the first day of a month
+ * @param {Date|Number} date - the original date
+ * @returns {Date} the start of a day
  * @throws {TypeError} 1 argument required
  *
  * @example
- * // Is 1 September 2014 the first day of a month?
- * var result = isFirstDayOfMonth(new Date(2014, 8, 1))
- * //=> true
+ * // The start of a day for 2 September 2014 11:55:00:
+ * var result = startOfDay(new Date(2014, 8, 2, 11, 55, 0))
+ * //=> Tue Sep 02 2014 00:00:00
  */
-function isFirstDayOfMonth(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDate() === 1;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isFriday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isFriday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isFriday
- * @category Weekday Helpers
- * @summary Is the given date Friday?
- *
- * @description
- * Is the given date Friday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Friday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 26 September 2014 Friday?
- * var result = isFriday(new Date(2014, 8, 26))
- * //=> true
- */
-function isFriday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 5;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isLastDayOfMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isLastDayOfMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../endOfDay/index.js"));
-
-var _index3 = _interopRequireDefault(require("../endOfMonth/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isLastDayOfMonth
- * @category Month Helpers
- * @summary Is the given date the last day of a month?
- *
- * @description
- * Is the given date the last day of a month?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is the last day of a month
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 28 February 2014 the last day of a month?
- * var result = isLastDayOfMonth(new Date(2014, 1, 28))
- * //=> true
- */
-function isLastDayOfMonth(dirtyDate) {
+function startOfDay(dirtyDate) {
   if (arguments.length < 1) {
     throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
   var date = (0, _index.default)(dirtyDate);
-  return (0, _index2.default)(date).getTime() === (0, _index3.default)(date).getTime();
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../endOfDay/index.js":"../node_modules/date-fns/esm/endOfDay/index.js","../endOfMonth/index.js":"../node_modules/date-fns/esm/endOfMonth/index.js"}],"../node_modules/date-fns/esm/isMonday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isMonday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isMonday
- * @category Weekday Helpers
- * @summary Is the given date Monday?
- *
- * @description
- * Is the given date Monday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Monday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 22 September 2014 Monday?
- * var result = isMonday(new Date(2014, 8, 22))
- * //=> true
- */
-function isMonday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 1;
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 },{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSameDay/index.js":[function(require,module,exports) {
 "use strict";
@@ -54473,1449 +49749,30 @@ function isSameDay(dirtyDateLeft, dirtyDateRight) {
   var dateRightStartOfDay = (0, _index.default)(dirtyDateRight);
   return dateLeftStartOfDay.getTime() === dateRightStartOfDay.getTime();
 }
-},{"../startOfDay/index.js":"../node_modules/date-fns/esm/startOfDay/index.js"}],"../node_modules/date-fns/esm/startOfHour/index.js":[function(require,module,exports) {
+},{"../startOfDay/index.js":"../node_modules/date-fns/esm/startOfDay/index.js"}],"../node_modules/date-fns/esm/_lib/assign/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = startOfHour;
+exports.default = assign;
 
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfHour
- * @category Hour Helpers
- * @summary Return the start of an hour for the given date.
- *
- * @description
- * Return the start of an hour for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of an hour
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of an hour for 2 September 2014 11:55:00:
- * var result = startOfHour(new Date(2014, 8, 2, 11, 55))
- * //=> Tue Sep 02 2014 11:00:00
- */
-function startOfHour(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
+function assign(target, dirtyObject) {
+  if (target == null) {
+    throw new TypeError('assign requires that input parameter not be null or undefined');
   }
 
-  var date = (0, _index.default)(dirtyDate);
-  date.setMinutes(0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSameHour/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameHour;
-
-var _index = _interopRequireDefault(require("../startOfHour/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameHour
- * @category Hour Helpers
- * @summary Are the given dates in the same hour?
- *
- * @description
- * Are the given dates in the same hour?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same hour
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 4 September 2014 06:00:00 and 4 September 06:30:00 in the same hour?
- * var result = isSameHour(new Date(2014, 8, 4, 6, 0), new Date(2014, 8, 4, 6, 30))
- * //=> true
- */
-function isSameHour(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfHour = (0, _index.default)(dirtyDateLeft);
-  var dateRightStartOfHour = (0, _index.default)(dirtyDateRight);
-  return dateLeftStartOfHour.getTime() === dateRightStartOfHour.getTime();
-}
-},{"../startOfHour/index.js":"../node_modules/date-fns/esm/startOfHour/index.js"}],"../node_modules/date-fns/esm/isSameWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameWeek;
-
-var _index = _interopRequireDefault(require("../startOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameWeek
- * @category Week Helpers
- * @summary Are the given dates in the same week?
- *
- * @description
- * Are the given dates in the same week?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Boolean} the dates are in the same week
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // Are 31 August 2014 and 4 September 2014 in the same week?
- * var result = isSameWeek(new Date(2014, 7, 31), new Date(2014, 8, 4))
- * //=> true
- *
- * @example
- * // If week starts with Monday,
- * // are 31 August 2014 and 4 September 2014 in the same week?
- * var result = isSameWeek(new Date(2014, 7, 31), new Date(2014, 8, 4), {
- *   weekStartsOn: 1
- * })
- * //=> false
- */
-function isSameWeek(dirtyDateLeft, dirtyDateRight, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfWeek = (0, _index.default)(dirtyDateLeft, dirtyOptions);
-  var dateRightStartOfWeek = (0, _index.default)(dirtyDateRight, dirtyOptions);
-  return dateLeftStartOfWeek.getTime() === dateRightStartOfWeek.getTime();
-}
-},{"../startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js"}],"../node_modules/date-fns/esm/isSameISOWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameISOWeek;
-
-var _index = _interopRequireDefault(require("../isSameWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameISOWeek
- * @category ISO Week Helpers
- * @summary Are the given dates in the same ISO week?
- *
- * @description
- * Are the given dates in the same ISO week?
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same ISO week
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 1 September 2014 and 7 September 2014 in the same ISO week?
- * var result = isSameISOWeek(new Date(2014, 8, 1), new Date(2014, 8, 7))
- * //=> true
- */
-function isSameISOWeek(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDateLeft, dirtyDateRight, {
-    weekStartsOn: 1
-  });
-}
-},{"../isSameWeek/index.js":"../node_modules/date-fns/esm/isSameWeek/index.js"}],"../node_modules/date-fns/esm/isSameISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameISOWeekYear;
-
-var _index = _interopRequireDefault(require("../startOfISOWeekYear/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Are the given dates in the same ISO week-numbering year?
- *
- * @description
- * Are the given dates in the same ISO week-numbering year?
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `isSameISOYear` to `isSameISOWeekYear`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `getWeekYear`.
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same ISO week-numbering year
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 29 December 2003 and 2 January 2005 in the same ISO week-numbering year?
- * var result = isSameISOWeekYear(new Date(2003, 11, 29), new Date(2005, 0, 2))
- * //=> true
- */
-function isSameISOWeekYear(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfYear = (0, _index.default)(dirtyDateLeft);
-  var dateRightStartOfYear = (0, _index.default)(dirtyDateRight);
-  return dateLeftStartOfYear.getTime() === dateRightStartOfYear.getTime();
-}
-},{"../startOfISOWeekYear/index.js":"../node_modules/date-fns/esm/startOfISOWeekYear/index.js"}],"../node_modules/date-fns/esm/startOfMinute/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfMinute;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfMinute
- * @category Minute Helpers
- * @summary Return the start of a minute for the given date.
- *
- * @description
- * Return the start of a minute for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a minute
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a minute for 1 December 2014 22:15:45.400:
- * var result = startOfMinute(new Date(2014, 11, 1, 22, 15, 45, 400))
- * //=> Mon Dec 01 2014 22:15:00
- */
-function startOfMinute(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  date.setSeconds(0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSameMinute/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameMinute;
-
-var _index = _interopRequireDefault(require("../startOfMinute/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameMinute
- * @category Minute Helpers
- * @summary Are the given dates in the same minute?
- *
- * @description
- * Are the given dates in the same minute?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same minute
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 4 September 2014 06:30:00 and 4 September 2014 06:30:15
- * // in the same minute?
- * var result = isSameMinute(
- *   new Date(2014, 8, 4, 6, 30),
- *   new Date(2014, 8, 4, 6, 30, 15)
- * )
- * //=> true
- */
-function isSameMinute(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfMinute = (0, _index.default)(dirtyDateLeft);
-  var dateRightStartOfMinute = (0, _index.default)(dirtyDateRight);
-  return dateLeftStartOfMinute.getTime() === dateRightStartOfMinute.getTime();
-}
-},{"../startOfMinute/index.js":"../node_modules/date-fns/esm/startOfMinute/index.js"}],"../node_modules/date-fns/esm/isSameMonth/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameMonth;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameMonth
- * @category Month Helpers
- * @summary Are the given dates in the same month?
- *
- * @description
- * Are the given dates in the same month?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same month
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 2 September 2014 and 25 September 2014 in the same month?
- * var result = isSameMonth(new Date(2014, 8, 2), new Date(2014, 8, 25))
- * //=> true
- */
-function isSameMonth(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  return dateLeft.getFullYear() === dateRight.getFullYear() && dateLeft.getMonth() === dateRight.getMonth();
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfQuarter;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfQuarter
- * @category Quarter Helpers
- * @summary Return the start of a year quarter for the given date.
- *
- * @description
- * Return the start of a year quarter for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a quarter
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a quarter for 2 September 2014 11:55:00:
- * var result = startOfQuarter(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Jul 01 2014 00:00:00
- */
-function startOfQuarter(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var currentMonth = date.getMonth();
-  var month = currentMonth - currentMonth % 3;
-  date.setMonth(month, 1);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSameQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameQuarter;
-
-var _index = _interopRequireDefault(require("../startOfQuarter/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameQuarter
- * @category Quarter Helpers
- * @summary Are the given dates in the same year quarter?
- *
- * @description
- * Are the given dates in the same year quarter?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same quarter
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 1 January 2014 and 8 March 2014 in the same quarter?
- * var result = isSameQuarter(new Date(2014, 0, 1), new Date(2014, 2, 8))
- * //=> true
- */
-function isSameQuarter(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfQuarter = (0, _index.default)(dirtyDateLeft);
-  var dateRightStartOfQuarter = (0, _index.default)(dirtyDateRight);
-  return dateLeftStartOfQuarter.getTime() === dateRightStartOfQuarter.getTime();
-}
-},{"../startOfQuarter/index.js":"../node_modules/date-fns/esm/startOfQuarter/index.js"}],"../node_modules/date-fns/esm/startOfSecond/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = startOfSecond;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name startOfSecond
- * @category Second Helpers
- * @summary Return the start of a second for the given date.
- *
- * @description
- * Return the start of a second for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the start of a second
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The start of a second for 1 December 2014 22:15:45.400:
- * var result = startOfSecond(new Date(2014, 11, 1, 22, 15, 45, 400))
- * //=> Mon Dec 01 2014 22:15:45.000
- */
-function startOfSecond(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  date.setMilliseconds(0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSameSecond/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameSecond;
-
-var _index = _interopRequireDefault(require("../startOfSecond/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameSecond
- * @category Second Helpers
- * @summary Are the given dates in the same second?
- *
- * @description
- * Are the given dates in the same second?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same second
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 4 September 2014 06:30:15.000 and 4 September 2014 06:30.15.500
- * // in the same second?
- * var result = isSameSecond(
- *   new Date(2014, 8, 4, 6, 30, 15),
- *   new Date(2014, 8, 4, 6, 30, 15, 500)
- * )
- * //=> true
- */
-function isSameSecond(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeftStartOfSecond = (0, _index.default)(dirtyDateLeft);
-  var dateRightStartOfSecond = (0, _index.default)(dirtyDateRight);
-  return dateLeftStartOfSecond.getTime() === dateRightStartOfSecond.getTime();
-}
-},{"../startOfSecond/index.js":"../node_modules/date-fns/esm/startOfSecond/index.js"}],"../node_modules/date-fns/esm/isSameYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSameYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSameYear
- * @category Year Helpers
- * @summary Are the given dates in the same year?
- *
- * @description
- * Are the given dates in the same year?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} dateLeft - the first date to check
- * @param {Date|Number} dateRight - the second date to check
- * @returns {Boolean} the dates are in the same year
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Are 2 September 2014 and 25 September 2014 in the same year?
- * var result = isSameYear(new Date(2014, 8, 2), new Date(2014, 8, 25))
- * //=> true
- */
-function isSameYear(dirtyDateLeft, dirtyDateRight) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var dateLeft = (0, _index.default)(dirtyDateLeft);
-  var dateRight = (0, _index.default)(dirtyDateRight);
-  return dateLeft.getFullYear() === dateRight.getFullYear();
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isSaturday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isSaturday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isSaturday
- * @category Weekday Helpers
- * @summary Is the given date Saturday?
- *
- * @description
- * Is the given date Saturday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Saturday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 27 September 2014 Saturday?
- * var result = isSaturday(new Date(2014, 8, 27))
- * //=> true
- */
-function isSaturday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 6;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isThursday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isThursday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isThursday
- * @category Weekday Helpers
- * @summary Is the given date Thursday?
- *
- * @description
- * Is the given date Thursday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Thursday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 25 September 2014 Thursday?
- * var result = isThursday(new Date(2014, 8, 25))
- * //=> true
- */
-function isThursday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 4;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isTuesday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isTuesday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isTuesday
- * @category Weekday Helpers
- * @summary Is the given date Tuesday?
- *
- * @description
- * Is the given date Tuesday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Tuesday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 23 September 2014 Tuesday?
- * var result = isTuesday(new Date(2014, 8, 23))
- * //=> true
- */
-function isTuesday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 2;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isWednesday/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isWednesday;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isWednesday
- * @category Weekday Helpers
- * @summary Is the given date Wednesday?
- *
- * @description
- * Is the given date Wednesday?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to check
- * @returns {Boolean} the date is Wednesday
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Is 24 September 2014 Wednesday?
- * var result = isWednesday(new Date(2014, 8, 24))
- * //=> true
- */
-function isWednesday(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate).getDay() === 3;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/isWithinInterval/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = isWithinInterval;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name isWithinInterval
- * @category Interval Helpers
- * @summary Is the given date within the interval?
- *
- * @description
- * Is the given date within the interval?
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `isWithinRange` to `isWithinInterval`.
- *   This change was made to mirror the use of the word "interval" in standard ISO 8601:2004 terminology:
- *
- *   ```
- *   2.1.3
- *   time interval
- *   part of the time axis limited by two instants
- *   ```
- *
- *   Also, this function now accepts an object with `start` and `end` properties
- *   instead of two arguments as an interval.
- *   This function now throws `RangeError` if the start of the interval is after its end
- *   or if any date in the interval is `Invalid Date`.
- *
- *   ```javascript
- *   // Before v2.0.0
- *
- *   isWithinRange(
- *     new Date(2014, 0, 3),
- *     new Date(2014, 0, 1), new Date(2014, 0, 7)
- *   )
- *
- *   // v2.0.0 onward
- *
- *   isWithinInterval(
- *     new Date(2014, 0, 3),
- *     { start: new Date(2014, 0, 1), end: new Date(2014, 0, 7) }
- *   )
- *   ```
- *
- * @param {Date|Number} date - the date to check
- * @param {Interval} interval - the interval to check
- * @returns {Boolean} the date is within the interval
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} The start of an interval cannot be after its end
- * @throws {RangeError} Date in interval cannot be `Invalid Date`
- *
- * @example
- * // For the date within the interval:
- * isWithinInterval(new Date(2014, 0, 3), {
- *   start: new Date(2014, 0, 1),
- *   end: new Date(2014, 0, 7)
- * })
- * //=> true
- *
- * @example
- * // For the date outside of the interval:
- * isWithinInterval(new Date(2014, 0, 10), {
- *   start: new Date(2014, 0, 1),
- *   end: new Date(2014, 0, 7)
- * })
- * //=> false
- */
-function isWithinInterval(dirtyDate, dirtyInterval) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var interval = dirtyInterval || {};
-  var time = (0, _index.default)(dirtyDate).getTime();
-  var startTime = (0, _index.default)(interval.start).getTime();
-  var endTime = (0, _index.default)(interval.end).getTime(); // Throw an exception if start date is after end date or if any date is `Invalid Date`
-
-  if (!(startTime <= endTime)) {
-    throw new RangeError('Invalid interval');
-  }
-
-  return time >= startTime && time <= endTime;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/lastDayOfDecade/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfDecade;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfDecade
- * @category Decade Helpers
- * @summary Return the last day of a decade for the given date.
- *
- * @description
- * Return the last day of a decade for the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the last day of a decade
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The last day of a decade for 21 December 2012 21:12:00:
- * var result = lastDayOfDecade(new Date(2012, 11, 21, 21, 12, 00))
- * //=> Wed Dec 31 2019 00:00:00
- */
-function lastDayOfDecade(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  var decade = 9 + Math.floor(year / 10) * 10;
-  date.setFullYear(decade + 1, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/lastDayOfWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfWeek;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfWeek
- * @category Week Helpers
- * @summary Return the last day of a week for the given date.
- *
- * @description
- * Return the last day of a week for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Date} the last day of a week
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // The last day of a week for 2 September 2014 11:55:00:
- * var result = lastDayOfWeek(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Sat Sep 06 2014 00:00:00
- *
- * @example
- * // If the week starts on Monday, the last day of the week for 2 September 2014 11:55:00:
- * var result = lastDayOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
- * //=> Sun Sep 07 2014 00:00:00
- */
-function lastDayOfWeek(dirtyDate, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeWeekStartsOn = locale && locale.options && locale.options.weekStartsOn;
-  var defaultWeekStartsOn = localeWeekStartsOn == null ? 0 : (0, _index.default)(localeWeekStartsOn);
-  var weekStartsOn = options.weekStartsOn == null ? defaultWeekStartsOn : (0, _index.default)(options.weekStartsOn); // Test if weekStartsOn is between 0 and 6 _and_ is not NaN
-
-  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
-    throw new RangeError('weekStartsOn must be between 0 and 6');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var day = date.getDay();
-  var diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + diff);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/lastDayOfISOWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfISOWeek;
-
-var _index = _interopRequireDefault(require("../lastDayOfWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfISOWeek
- * @category ISO Week Helpers
- * @summary Return the last day of an ISO week for the given date.
- *
- * @description
- * Return the last day of an ISO week for the given date.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the last day of an ISO week
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The last day of an ISO week for 2 September 2014 11:55:00:
- * var result = lastDayOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Sun Sep 07 2014 00:00:00
- */
-function lastDayOfISOWeek(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  return (0, _index.default)(dirtyDate, {
-    weekStartsOn: 1
-  });
-}
-},{"../lastDayOfWeek/index.js":"../node_modules/date-fns/esm/lastDayOfWeek/index.js"}],"../node_modules/date-fns/esm/lastDayOfISOWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfISOWeekYear;
-
-var _index = _interopRequireDefault(require("../getISOWeekYear/index.js"));
-
-var _index2 = _interopRequireDefault(require("../startOfISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfISOWeekYear
- * @category ISO Week-Numbering Year Helpers
- * @summary Return the last day of an ISO week-numbering year for the given date.
- *
- * @description
- * Return the last day of an ISO week-numbering year,
- * which always starts 3 days before the year's first Thursday.
- * The result will be in the local timezone.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The function was renamed from `lastDayOfISOYear` to `lastDayOfISOWeekYear`.
- *   "ISO week year" is short for [ISO week-numbering year](https://en.wikipedia.org/wiki/ISO_week_date).
- *   This change makes the name consistent with
- *   locale-dependent week-numbering year helpers, e.g., `getWeekYear`.
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the end of an ISO week-numbering year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The last day of an ISO week-numbering year for 2 July 2005:
- * var result = lastDayOfISOWeekYear(new Date(2005, 6, 2))
- * //=> Sun Jan 01 2006 00:00:00
- */
-function lastDayOfISOWeekYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var year = (0, _index.default)(dirtyDate);
-  var fourthOfJanuary = new Date(0);
-  fourthOfJanuary.setFullYear(year + 1, 0, 4);
-  fourthOfJanuary.setHours(0, 0, 0, 0);
-  var date = (0, _index2.default)(fourthOfJanuary);
-  date.setDate(date.getDate() - 1);
-  return date;
-}
-},{"../getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js","../startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js"}],"../node_modules/date-fns/esm/lastDayOfQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfQuarter;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfQuarter
- * @category Quarter Helpers
- * @summary Return the last day of a year quarter for the given date.
- *
- * @description
- * Return the last day of a year quarter for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2} [options.additionalDigits=2] - passed to `toDate`. See [toDate]{@link https://date-fns.org/docs/toDate}
- * @returns {Date} the last day of a quarter
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.additionalDigits` must be 0, 1 or 2
- *
- * @example
- * // The last day of a quarter for 2 September 2014 11:55:00:
- * var result = lastDayOfQuarter(new Date(2014, 8, 2, 11, 55, 0))
- * //=> Tue Sep 30 2014 00:00:00
- */
-function lastDayOfQuarter(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var currentMonth = date.getMonth();
-  var month = currentMonth - currentMonth % 3 + 3;
-  date.setMonth(month, 0);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/lastDayOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lastDayOfYear;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name lastDayOfYear
- * @category Year Helpers
- * @summary Return the last day of a year for the given date.
- *
- * @description
- * Return the last day of a year for the given date.
- * The result will be in the local timezone.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the original date
- * @returns {Date} the last day of a year
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // The last day of a year for 2 September 2014 11:55:00:
- * var result = lastDayOfYear(new Date(2014, 8, 2, 11, 55, 00))
- * //=> Wed Dec 31 2014 00:00:00
- */
-function lastDayOfYear(dirtyDate) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  date.setFullYear(year + 1, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/lightFormat/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = lightFormat;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../_lib/format/lightFormatters/index.js"));
-
-var _index3 = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-var _index4 = _interopRequireDefault(require("../isValid/index.js"));
-
-var _index5 = _interopRequireDefault(require("../subMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// This RegExp consists of three parts separated by `|`:
-// - (\w)\1* matches any sequences of the same letter
-// - '' matches two quote characters in a row
-// - '(''|[^'])+('|$) matches anything surrounded by two quote characters ('),
-//   except a single quote symbol, which ends the sequence.
-//   Two quote characters do not end the sequence.
-//   If there is no matching single quote
-//   then the sequence will continue until the end of the string.
-// - . matches any single character unmatched by previous parts of the RegExps
-var formattingTokensRegExp = /(\w)\1*|''|'(''|[^'])+('|$)|./g;
-var escapedStringRegExp = /^'(.*?)'?$/;
-var doubleQuoteRegExp = /''/g;
-/**
- * @name lightFormat
- * @category Common Helpers
- * @summary Format the date.
- *
- * @description
- * Return the formatted date string in the given format. Unlike `format`,
- * `lightFormat` doesn't use locales and outputs date using the most popular tokens.
- *
- * > ⚠️ Please note that the `lightFormat` tokens differ from Moment.js and other libraries.
- * > See: https://git.io/fxCyr
- *
- * The characters wrapped between two single quotes characters (') are escaped.
- * Two single quotes in a row, whether inside or outside a quoted sequence, represent a 'real' single quote.
- * (see the last example)
- *
- * Format of the string is based on Unicode Technical Standard #35:
- * https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
- * with a few additions (see note 7 below the table).
- *
- * Accepted patterns:
- * | Unit                            | Pattern | Result examples                   |
- * |---------------------------------|---------|-----------------------------------|
- * | AM, PM                          | a..aaa  | AM, PM                            |
- * |                                 | aaaa    | a.m., p.m.                        |
- * |                                 | aaaaa   | a, p                              |
- * | Calendar year                   | y       | 44, 1, 1900, 2017                 |
- * |                                 | yy      | 44, 01, 00, 17                    |
- * |                                 | yyy     | 044, 001, 000, 017                |
- * |                                 | yyyy    | 0044, 0001, 1900, 2017            |
- * | Month (formatting)              | M       | 1, 2, ..., 12                     |
- * |                                 | MM      | 01, 02, ..., 12                   |
- * | Day of month                    | d       | 1, 2, ..., 31                     |
- * |                                 | dd      | 01, 02, ..., 31                   |
- * | Hour [1-12]                     | h       | 1, 2, ..., 11, 12                 |
- * |                                 | hh      | 01, 02, ..., 11, 12               |
- * | Hour [0-23]                     | H       | 0, 1, 2, ..., 23                  |
- * |                                 | HH      | 00, 01, 02, ..., 23               |
- * | Minute                          | m       | 0, 1, ..., 59                     |
- * |                                 | mm      | 00, 01, ..., 59                   |
- * | Second                          | s       | 0, 1, ..., 59                     |
- * |                                 | ss      | 00, 01, ..., 59                   |
- * | Timezone (ISO-8601 w/ Z)        | X       | -08, +0530, Z                     |
- * |                                 | XX      | -0800, +0530, Z                   |
- * |                                 | XXX     | -08:00, +05:30, Z                 |
- * |                                 | XXXX    | -0800, +0530, Z, +123456          |
- * |                                 | XXXXX   | -08:00, +05:30, Z, +12:34:56      |
- * | Timezone (ISO-8601 w/o Z)       | x       | -08, +0530, +00                   |
- * |                                 | xx      | -0800, +0530, +0000               |
- * |                                 | xxx     | -08:00, +05:30, +00:00            |
- * |                                 | xxxx    | -0800, +0530, +0000, +123456      |
- * |                                 | xxxxx   | -08:00, +05:30, +00:00, +12:34:56 |
- *
- * @param {Date|Number} date - the original date
- * @param {String} format - the string of tokens
- * @returns {String} the formatted date string
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * var result = format(new Date(2014, 1, 11), 'yyyy-MM-dd')
- * //=> '1987-02-11'
- */
-
-function lightFormat(dirtyDate, dirtyFormatStr) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var formatStr = String(dirtyFormatStr);
-  var originalDate = (0, _index.default)(dirtyDate);
-
-  if (!(0, _index4.default)(originalDate)) {
-    throw new RangeError('Invalid time value');
-  } // Convert the date in system timezone to the same date in UTC+00:00 timezone.
-  // This ensures that when UTC functions will be implemented, locales will be compatible with them.
-  // See an issue about UTC functions: https://github.com/date-fns/date-fns/issues/376
-
-
-  var timezoneOffset = (0, _index3.default)(originalDate);
-  var utcDate = (0, _index5.default)(originalDate, timezoneOffset);
-  var result = formatStr.match(formattingTokensRegExp).map(function (substring) {
-    // Replace two single quote characters with one single quote character
-    if (substring === "''") {
-      return "'";
+  dirtyObject = dirtyObject || {};
+
+  for (var property in dirtyObject) {
+    if (dirtyObject.hasOwnProperty(property)) {
+      target[property] = dirtyObject[property];
     }
-
-    var firstCharacter = substring[0];
-
-    if (firstCharacter === "'") {
-      return cleanEscapedString(substring);
-    }
-
-    var formatter = _index2.default[firstCharacter];
-
-    if (formatter) {
-      return formatter(utcDate, substring, null, {});
-    }
-
-    return substring;
-  }).join('');
-  return result;
-}
-
-function cleanEscapedString(input) {
-  return input.match(escapedStringRegExp)[1].replace(doubleQuoteRegExp, "'");
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../_lib/format/lightFormatters/index.js":"../node_modules/date-fns/esm/_lib/format/lightFormatters/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../isValid/index.js":"../node_modules/date-fns/esm/isValid/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js"}],"../node_modules/date-fns/esm/max/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = max;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name max
- * @category Common Helpers
- * @summary Return the latest of the given dates.
- *
- * @description
- * Return the latest of the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - `max` function now accepts an array of dates rather than spread arguments.
- *
- *   ```javascript
- *   // Before v2.0.0
- *   var date1 = new Date(1989, 6, 10)
- *   var date2 = new Date(1987, 1, 11)
- *   var maxDate = max(date1, date2)
- *
- *   // v2.0.0 onward:
- *   var dates = [new Date(1989, 6, 10), new Date(1987, 1, 11)]
- *   var maxDate = max(dates)
- *   ```
- *
- * @param {Date[]|Number[]} datesArray - the dates to compare
- * @returns {Date} the latest of the dates
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which of these dates is the latest?
- * var result = max([
- *   new Date(1989, 6, 10),
- *   new Date(1987, 1, 11),
- *   new Date(1995, 6, 2),
- *   new Date(1990, 0, 1)
- * ])
- * //=> Sun Jul 02 1995 00:00:00
- */
-function max(dirtyDatesArray) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
-  var datesArray; // `dirtyDatesArray` is undefined or null
-
-  if (dirtyDatesArray == null) {
-    datesArray = []; // `dirtyDatesArray` is Array, Set or Map, or object with custom `forEach` method
-  } else if (typeof dirtyDatesArray.forEach === 'function') {
-    datesArray = dirtyDatesArray; // If `dirtyDatesArray` is Array-like Object, convert to Array. Otherwise, make it empty Array
-  } else {
-    datesArray = Array.prototype.slice.call(dirtyDatesArray);
-  }
-
-  var result;
-  datesArray.forEach(function (dirtyDate) {
-    var currentDate = (0, _index.default)(dirtyDate);
-
-    if (result === undefined || result < currentDate || isNaN(currentDate)) {
-      result = currentDate;
-    }
-  });
-  return result;
+  return target;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/min/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = min;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name min
- * @category Common Helpers
- * @summary Return the earliest of the given dates.
- *
- * @description
- * Return the earliest of the given dates.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - `min` function now accepts an array of dates rather than spread arguments.
- *
- *   ```javascript
- *   // Before v2.0.0
- *   var date1 = new Date(1989, 6, 10)
- *   var date2 = new Date(1987, 1, 11)
- *   var minDate = min(date1, date2)
- *
- *   // v2.0.0 onward:
- *   var dates = [new Date(1989, 6, 10), new Date(1987, 1, 11)]
- *   var minDate = min(dates)
- *   ```
- *
- * @param {Date[]|Number[]} datesArray - the dates to compare
- * @returns {Date} the earliest of the dates
- * @throws {TypeError} 1 argument required
- *
- * @example
- * // Which of these dates is the earliest?
- * var result = min([
- *   new Date(1989, 6, 10),
- *   new Date(1987, 1, 11),
- *   new Date(1995, 6, 2),
- *   new Date(1990, 0, 1)
- * ])
- * //=> Wed Feb 11 1987 00:00:00
- */
-function min(dirtyDatesArray) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var datesArray; // `dirtyDatesArray` is undefined or null
-
-  if (dirtyDatesArray == null) {
-    datesArray = []; // `dirtyDatesArray` is Array, Set or Map, or object with custom `forEach` method
-  } else if (typeof dirtyDatesArray.forEach === 'function') {
-    datesArray = dirtyDatesArray; // If `dirtyDatesArray` is Array-like Object, convert to Array. Otherwise, make it empty Array
-  } else {
-    datesArray = Array.prototype.slice.call(dirtyDatesArray);
-  }
-
-  var result;
-  datesArray.forEach(function (dirtyDate) {
-    var currentDate = (0, _index.default)(dirtyDate);
-
-    if (result === undefined || result > currentDate || isNaN(currentDate)) {
-      result = currentDate;
-    }
-  });
-  return result;
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/_lib/setUTCDay/index.js":[function(require,module,exports) {
+},{}],"../node_modules/date-fns/esm/_lib/setUTCDay/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -58017,522 +51874,7 @@ function dateToSystemTimezone(date, flags) {
 function cleanEscapedString(input) {
   return input.match(escapedStringRegExp)[1].replace(doubleQuoteRegExp, "'");
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../_lib/assign/index.js":"../node_modules/date-fns/esm/_lib/assign/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js","./_lib/parsers/index.js":"../node_modules/date-fns/esm/parse/_lib/parsers/index.js","../_lib/protectedTokens/index.js":"../node_modules/date-fns/esm/_lib/protectedTokens/index.js"}],"../node_modules/date-fns/esm/parseISO/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = parseISO;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../_lib/getTimezoneOffsetInMilliseconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var MILLISECONDS_IN_HOUR = 3600000;
-var MILLISECONDS_IN_MINUTE = 60000;
-var DEFAULT_ADDITIONAL_DIGITS = 2;
-var patterns = {
-  dateTimeDelimiter: /[T ]/,
-  timeZoneDelimiter: /[Z ]/i,
-  timezone: /([Z+-].*)$/
-};
-var dateRegex = /^-?(?:(\d{3})|(\d{2})(?:-?(\d{2}))?|W(\d{2})(?:-?(\d{1}))?|)$/;
-var timeRegex = /^(\d{2}(?:[.,]\d*)?)(?::?(\d{2}(?:[.,]\d*)?))?(?::?(\d{2}(?:[.,]\d*)?))?$/;
-var timezoneRegex = /^([+-])(\d{2})(?::?(\d{2}))?$/;
-/**
- * @name parseISO
- * @category Common Helpers
- * @summary Parse ISO string
- *
- * @description
- * Parse the given string in ISO 8601 format and return an instance of Date.
- *
- * Function accepts complete ISO 8601 formats as well as partial implementations.
- * ISO 8601: http://en.wikipedia.org/wiki/ISO_8601
- *
- * If the argument isn't a string, the function cannot parse the string or
- * the values are invalid, it returns Invalid Date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * - The previous `parse` implementation was renamed to `parseISO`.
- *
- *   ```javascript
- *   // Before v2.0.0
- *   parse('2016-01-01')
- *
- *   // v2.0.0 onward
- *   parseISO('2016-01-01')
- *   ```
- *
- * - `parseISO` now validates separate date and time values in ISO-8601 strings
- *   and returns `Invalid Date` if the date is invalid.
- *
- *   ```javascript
- *   parseISO('2018-13-32')
- *   //=> Invalid Date
- *   ```
- *
- * - `parseISO` now doesn't fall back to `new Date` constructor
- *   if it fails to parse a string argument. Instead, it returns `Invalid Date`.
- *
- * @param {String} argument - the value to convert
- * @param {Object} [options] - an object with options.
- * @param {0|1|2} [options.additionalDigits=2] - the additional number of digits in the extended year format
- * @returns {Date} the parsed date in the local time zone
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.additionalDigits` must be 0, 1 or 2
- *
- * @example
- * // Convert string '2014-02-11T11:30:30' to date:
- * var result = parseISO('2014-02-11T11:30:30')
- * //=> Tue Feb 11 2014 11:30:30
- *
- * @example
- * // Convert string '+02014101' to date,
- * // if the additional number of digits in the extended year format is 1:
- * var result = parseISO('+02014101', { additionalDigits: 1 })
- * //=> Fri Apr 11 2014 00:00:00
- */
-
-function parseISO(argument, dirtyOptions) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var additionalDigits = options.additionalDigits == null ? DEFAULT_ADDITIONAL_DIGITS : (0, _index.default)(options.additionalDigits);
-
-  if (additionalDigits !== 2 && additionalDigits !== 1 && additionalDigits !== 0) {
-    throw new RangeError('additionalDigits must be 0, 1 or 2');
-  }
-
-  if (!(typeof argument === 'string' || Object.prototype.toString.call(argument) === '[object String]')) {
-    return new Date(NaN);
-  }
-
-  var dateStrings = splitDateString(argument);
-  var parseYearResult = parseYear(dateStrings.date, additionalDigits);
-  var date = parseDate(parseYearResult.restDateString, parseYearResult.year);
-
-  if (isNaN(date) || !date) {
-    return new Date(NaN);
-  }
-
-  var timestamp = date.getTime();
-  var time = 0;
-  var offset;
-
-  if (dateStrings.time) {
-    time = parseTime(dateStrings.time);
-
-    if (isNaN(time)) {
-      return new Date(NaN);
-    }
-  }
-
-  if (dateStrings.timezone) {
-    offset = parseTimezone(dateStrings.timezone);
-
-    if (isNaN(offset)) {
-      return new Date(NaN);
-    }
-  } else {
-    var fullTime = timestamp + time;
-    var fullTimeDate = new Date(fullTime);
-    offset = (0, _index2.default)(fullTimeDate); // Adjust time when it's coming from DST
-
-    var fullTimeDateNextDay = new Date(fullTime);
-    fullTimeDateNextDay.setDate(fullTimeDate.getDate() + 1);
-    var offsetDiff = (0, _index2.default)(fullTimeDateNextDay) - offset;
-
-    if (offsetDiff > 0) {
-      offset += offsetDiff;
-    }
-  }
-
-  return new Date(timestamp + time + offset);
-}
-
-function splitDateString(dateString) {
-  var dateStrings = {};
-  var array = dateString.split(patterns.dateTimeDelimiter);
-  var timeString;
-
-  if (/:/.test(array[0])) {
-    dateStrings.date = null;
-    timeString = array[0];
-  } else {
-    dateStrings.date = array[0];
-    timeString = array[1];
-
-    if (patterns.timeZoneDelimiter.test(dateStrings.date)) {
-      dateStrings.date = dateString.split(patterns.timeZoneDelimiter)[0];
-      timeString = dateString.substr(dateStrings.date.length, dateString.length);
-    }
-  }
-
-  if (timeString) {
-    var token = patterns.timezone.exec(timeString);
-
-    if (token) {
-      dateStrings.time = timeString.replace(token[1], '');
-      dateStrings.timezone = token[1];
-    } else {
-      dateStrings.time = timeString;
-    }
-  }
-
-  return dateStrings;
-}
-
-function parseYear(dateString, additionalDigits) {
-  var regex = new RegExp('^(?:(\\d{4}|[+-]\\d{' + (4 + additionalDigits) + '})|(\\d{2}|[+-]\\d{' + (2 + additionalDigits) + '})$)');
-  var captures = dateString.match(regex); // Invalid ISO-formatted year
-
-  if (!captures) return {
-    year: null
-  };
-  var year = captures[1] && parseInt(captures[1]);
-  var century = captures[2] && parseInt(captures[2]);
-  return {
-    year: century == null ? year : century * 100,
-    restDateString: dateString.slice((captures[1] || captures[2]).length)
-  };
-}
-
-function parseDate(dateString, year) {
-  // Invalid ISO-formatted year
-  if (year === null) return null;
-  var captures = dateString.match(dateRegex); // Invalid ISO-formatted string
-
-  if (!captures) return null;
-  var isWeekDate = !!captures[4];
-  var dayOfYear = parseDateUnit(captures[1]);
-  var month = parseDateUnit(captures[2]) - 1;
-  var day = parseDateUnit(captures[3]);
-  var week = parseDateUnit(captures[4]) - 1;
-  var dayOfWeek = parseDateUnit(captures[5]) - 1;
-
-  if (isWeekDate) {
-    if (!validateWeekDate(year, week, dayOfWeek)) {
-      return new Date(NaN);
-    }
-
-    return dayOfISOWeekYear(year, week, dayOfWeek);
-  } else {
-    var date = new Date(0);
-
-    if (!validateDate(year, month, day) || !validateDayOfYearDate(year, dayOfYear)) {
-      return new Date(NaN);
-    }
-
-    date.setUTCFullYear(year, month, Math.max(dayOfYear, day));
-    return date;
-  }
-}
-
-function parseDateUnit(value) {
-  return value ? parseInt(value) : 1;
-}
-
-function parseTime(timeString) {
-  var captures = timeString.match(timeRegex);
-  if (!captures) return null; // Invalid ISO-formatted time
-
-  var hours = parseTimeUnit(captures[1]);
-  var minutes = parseTimeUnit(captures[2]);
-  var seconds = parseTimeUnit(captures[3]);
-
-  if (!validateTime(hours, minutes, seconds)) {
-    return NaN;
-  }
-
-  return hours % 24 * MILLISECONDS_IN_HOUR + minutes * MILLISECONDS_IN_MINUTE + seconds * 1000;
-}
-
-function parseTimeUnit(value) {
-  return value && parseFloat(value.replace(',', '.')) || 0;
-}
-
-function parseTimezone(timezoneString) {
-  if (timezoneString === 'Z') return 0;
-  var captures = timezoneString.match(timezoneRegex);
-  if (!captures) return 0;
-  var sign = captures[1] === '+' ? -1 : 1;
-  var hours = parseInt(captures[2]);
-  var minutes = captures[3] && parseInt(captures[3]) || 0;
-
-  if (!validateTimezone(hours, minutes)) {
-    return NaN;
-  }
-
-  return sign * (hours * MILLISECONDS_IN_HOUR + minutes * MILLISECONDS_IN_MINUTE);
-}
-
-function dayOfISOWeekYear(isoWeekYear, week, day) {
-  var date = new Date(0);
-  date.setUTCFullYear(isoWeekYear, 0, 4);
-  var fourthOfJanuaryDay = date.getUTCDay() || 7;
-  var diff = (week || 0) * 7 + (day || 0) + 1 - fourthOfJanuaryDay;
-  date.setUTCDate(date.getUTCDate() + diff);
-  return date;
-} // Validation functions
-// February is null to handle the leap year (using ||)
-
-
-var daysInMonths = [31, null, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-function isLeapYearIndex(year) {
-  return year % 400 === 0 || year % 4 === 0 && year % 100;
-}
-
-function validateDate(year, month, date) {
-  return !(month < 0 || month > 11 || date < 1 || date > (daysInMonths[month] || (isLeapYearIndex(year) ? 29 : 28)));
-}
-
-function validateDayOfYearDate(year, dayOfYear) {
-  return !(dayOfYear < 1 || dayOfYear > (isLeapYearIndex(year) ? 366 : 365));
-}
-
-function validateWeekDate(_year, week, day) {
-  return !(week < 0 || week > 52 || day < 0 || day > 6);
-}
-
-function validateTime(hours, minutes, seconds) {
-  return !(seconds < 0 || seconds >= 60 || minutes < 0 || minutes >= 60 || hours < 0 || hours >= 25);
-}
-
-function validateTimezone(_hours, minutes) {
-  return !(minutes < 0 || minutes > 59);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js"}],"../node_modules/date-fns/esm/roundToNearestMinutes/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = roundToNearestMinutes;
-
-var _index = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index2 = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name roundToNearestMinutes
- * @category Minute Helpers
- * @summary Rounds the given date to the nearest minute
- *
- * @description
- * Rounds the given date to the nearest minute
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to round
- * @param {Object} [options] - an object with options.
- * @param {Number} [options.nearestTo=1] - passed to `toDate`. See [toDate]{@link https://date-fns.org/docs/toDate}
- * @returns {Date} the new date rounded to the closest minute
- * @throws {TypeError} 1 argument required
- * @throws {RangeError} `options.nearestTo` must be between 1 and 30
- *
- * @example
- * // Round 10 July 2014 12:12:34 to nearest minute:
- * var result = roundToNearestMinutes(new Date(2014, 6, 10, 12, 12, 34))
- * //=> Thu Jul 10 2014 12:13:00
- */
-function roundToNearestMinutes(dirtyDate, options) {
-  if (arguments.length < 1) {
-    throw new TypeError('1 argument required, but only none provided present');
-  }
-
-  var nearestTo = options && 'nearestTo' in options ? (0, _index2.default)(options.nearestTo) : 1;
-
-  if (nearestTo < 1 || nearestTo > 30) {
-    throw new RangeError('`options.nearestTo` must be between 1 and 30');
-  }
-
-  var date = (0, _index.default)(dirtyDate);
-  var seconds = date.getSeconds(); // relevant if nearestTo is 1, which is the default case
-
-  var minutes = date.getMinutes() + seconds / 60;
-  var roundedMinutes = Math.floor(minutes / nearestTo) * nearestTo;
-  var remainderMinutes = minutes % nearestTo;
-  var addedMinutes = Math.round(remainderMinutes / nearestTo) * nearestTo;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), roundedMinutes + addedMinutes);
-}
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js"}],"../node_modules/date-fns/esm/setDate/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setDate;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setDate
- * @category Day Helpers
- * @summary Set the day of the month to the given date.
- *
- * @description
- * Set the day of the month to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} dayOfMonth - the day of the month of the new date
- * @returns {Date} the new date with the day of the month set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set the 30th day of the month to 1 September 2014:
- * var result = setDate(new Date(2014, 8, 1), 30)
- * //=> Tue Sep 30 2014 00:00:00
- */
-function setDate(dirtyDate, dirtyDayOfMonth) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var dayOfMonth = (0, _index.default)(dirtyDayOfMonth);
-  date.setDate(dayOfMonth);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setDay/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setDay;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../addDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setDay
- * @category Weekday Helpers
- * @summary Set the day of the week to the given date.
- *
- * @description
- * Set the day of the week to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} day - the day of the week of the new date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
- * @returns {Date} the new date with the day of the week set
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- *
- * @example
- * // Set Sunday to 1 September 2014:
- * var result = setDay(new Date(2014, 8, 1), 0)
- * //=> Sun Aug 31 2014 00:00:00
- *
- * @example
- * // If week starts with Monday, set Sunday to 1 September 2014:
- * var result = setDay(new Date(2014, 8, 1), 0, { weekStartsOn: 1 })
- * //=> Sun Sep 07 2014 00:00:00
- */
-function setDay(dirtyDate, dirtyDay, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeWeekStartsOn = locale && locale.options && locale.options.weekStartsOn;
-  var defaultWeekStartsOn = localeWeekStartsOn == null ? 0 : (0, _index.default)(localeWeekStartsOn);
-  var weekStartsOn = options.weekStartsOn == null ? defaultWeekStartsOn : (0, _index.default)(options.weekStartsOn); // Test if weekStartsOn is between 0 and 6 _and_ is not NaN
-
-  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
-    throw new RangeError('weekStartsOn must be between 0 and 6 inclusively');
-  }
-
-  var date = (0, _index2.default)(dirtyDate, options);
-  var day = (0, _index.default)(dirtyDay);
-  var currentDay = date.getDay();
-  var remainder = day % 7;
-  var dayIndex = (remainder + 7) % 7;
-  var diff = (dayIndex < weekStartsOn ? 7 : 0) + day - currentDay;
-  return (0, _index3.default)(date, diff, options);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../addDays/index.js":"../node_modules/date-fns/esm/addDays/index.js"}],"../node_modules/date-fns/esm/setDayOfYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setDayOfYear;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setDayOfYear
- * @category Day Helpers
- * @summary Set the day of the year to the given date.
- *
- * @description
- * Set the day of the year to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} dayOfYear - the day of the year of the new date
- * @returns {Date} the new date with the day of the year set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set the 2nd day of the year to 2 July 2014:
- * var result = setDayOfYear(new Date(2014, 6, 2), 2)
- * //=> Thu Jan 02 2014 00:00:00
- */
-function setDayOfYear(dirtyDate, dirtyDayOfYear) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var dayOfYear = (0, _index.default)(dirtyDayOfYear);
-  date.setMonth(0);
-  date.setDate(dayOfYear);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setHours/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../_lib/assign/index.js":"../node_modules/date-fns/esm/_lib/assign/index.js","../_lib/getTimezoneOffsetInMilliseconds/index.js":"../node_modules/date-fns/esm/_lib/getTimezoneOffsetInMilliseconds/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js","../locale/en-US/index.js":"../node_modules/date-fns/esm/locale/en-US/index.js","./_lib/parsers/index.js":"../node_modules/date-fns/esm/parse/_lib/parsers/index.js","../_lib/protectedTokens/index.js":"../node_modules/date-fns/esm/_lib/protectedTokens/index.js"}],"../node_modules/date-fns/esm/setHours/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -58576,156 +51918,6 @@ function setHours(dirtyDate, dirtyHours) {
   var date = (0, _index2.default)(dirtyDate);
   var hours = (0, _index.default)(dirtyHours);
   date.setHours(hours);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setISODay/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setISODay;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../addDays/index.js"));
-
-var _index4 = _interopRequireDefault(require("../getISODay/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setISODay
- * @category Weekday Helpers
- * @summary Set the day of the ISO week to the given date.
- *
- * @description
- * Set the day of the ISO week to the given date.
- * ISO week starts with Monday.
- * 7 is the index of Sunday, 1 is the index of Monday etc.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} day - the day of the ISO week of the new date
- * @returns {Date} the new date with the day of the ISO week set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set Sunday to 1 September 2014:
- * var result = setISODay(new Date(2014, 8, 1), 7)
- * //=> Sun Sep 07 2014 00:00:00
- */
-function setISODay(dirtyDate, dirtyDay) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var day = (0, _index.default)(dirtyDay);
-  var currentDay = (0, _index4.default)(date);
-  var diff = day - currentDay;
-  return (0, _index3.default)(date, diff);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../addDays/index.js":"../node_modules/date-fns/esm/addDays/index.js","../getISODay/index.js":"../node_modules/date-fns/esm/getISODay/index.js"}],"../node_modules/date-fns/esm/setISOWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setISOWeek;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../getISOWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setISOWeek
- * @category ISO Week Helpers
- * @summary Set the ISO week to the given date.
- *
- * @description
- * Set the ISO week to the given date, saving the weekday number.
- *
- * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} isoWeek - the ISO week of the new date
- * @returns {Date} the new date with the ISO week set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set the 53rd ISO week to 7 August 2004:
- * var result = setISOWeek(new Date(2004, 7, 7), 53)
- * //=> Sat Jan 01 2005 00:00:00
- */
-function setISOWeek(dirtyDate, dirtyISOWeek) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var isoWeek = (0, _index.default)(dirtyISOWeek);
-  var diff = (0, _index3.default)(date) - isoWeek;
-  date.setDate(date.getDate() - diff * 7);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getISOWeek/index.js":"../node_modules/date-fns/esm/getISOWeek/index.js"}],"../node_modules/date-fns/esm/setMilliseconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setMilliseconds;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setMilliseconds
- * @category Millisecond Helpers
- * @summary Set the milliseconds to the given date.
- *
- * @description
- * Set the milliseconds to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} milliseconds - the milliseconds of the new date
- * @returns {Date} the new date with the milliseconds set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set 300 milliseconds to 1 September 2014 11:30:40.500:
- * var result = setMilliseconds(new Date(2014, 8, 1, 11, 30, 40, 500), 300)
- * //=> Mon Sep 01 2014 11:30:40.300
- */
-function setMilliseconds(dirtyDate, dirtyMilliseconds) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var milliseconds = (0, _index.default)(dirtyMilliseconds);
-  date.setMilliseconds(milliseconds);
   return date;
 }
 },{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setMinutes/index.js":[function(require,module,exports) {
@@ -58830,56 +52022,7 @@ function setMonth(dirtyDate, dirtyMonth) {
   date.setMonth(month, Math.min(day, daysInMonth));
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getDaysInMonth/index.js":"../node_modules/date-fns/esm/getDaysInMonth/index.js"}],"../node_modules/date-fns/esm/setQuarter/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setQuarter;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../setMonth/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setQuarter
- * @category Quarter Helpers
- * @summary Set the year quarter to the given date.
- *
- * @description
- * Set the year quarter to the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} quarter - the quarter of the new date
- * @returns {Date} the new date with the quarter set
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Set the 2nd quarter to 2 July 2014:
- * var result = setQuarter(new Date(2014, 6, 2), 2)
- * //=> Wed Apr 02 2014 00:00:00
- */
-function setQuarter(dirtyDate, dirtyQuarter) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var quarter = (0, _index.default)(dirtyQuarter);
-  var oldQuarter = Math.floor(date.getMonth() / 3) + 1;
-  var diff = quarter - oldQuarter;
-  return (0, _index3.default)(date, date.getMonth() + diff * 3);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../setMonth/index.js":"../node_modules/date-fns/esm/setMonth/index.js"}],"../node_modules/date-fns/esm/setSeconds/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getDaysInMonth/index.js":"../node_modules/date-fns/esm/getDaysInMonth/index.js"}],"../node_modules/date-fns/esm/setSeconds/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -58925,159 +52068,7 @@ function setSeconds(dirtyDate, dirtySeconds) {
   date.setSeconds(seconds);
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setWeek/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setWeek;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../getWeek/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setWeek
- * @category Week Helpers
- * @summary Set the local week to the given date.
- *
- * @description
- * Set the local week to the given date, saving the weekday number.
- * The exact calculation depends on the values of
- * `options.weekStartsOn` (which is the index of the first day of the week)
- * and `options.firstWeekContainsDate` (which is the day of January, which is always in
- * the first week of the week-numbering year)
- *
- * Week numbering: https://en.wikipedia.org/wiki/Week#Week_numbering
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} week - the week of the new date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {1|2|3|4|5|6|7} [options.firstWeekContainsDate=1] - the day of January, which is always in the first week of the year
- * @returns {Date} the new date with the local week set
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.firstWeekContainsDate` must be between 1 and 7
- *
- * @example
- * // Set the 1st week to 2 January 2005 with default options:
- * var result = setWeek(new Date(2005, 0, 2), 1)
- * //=> Sun Dec 26 2004 00:00:00
- *
- * @example
- * // Set the 1st week to 2 January 2005,
- * // if Monday is the first day of the week,
- * // and the first week of the year always contains 4 January:
- * var result = setWeek(new Date(2005, 0, 2), 1, {
- *   weekStartsOn: 1,
- *   firstWeekContainsDate: 4
- * })
- * //=> Sun Jan 4 2004 00:00:00
- */
-function setWeek(dirtyDate, dirtyWeek, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var date = (0, _index2.default)(dirtyDate);
-  var week = (0, _index.default)(dirtyWeek);
-  var diff = (0, _index3.default)(date, dirtyOptions) - week;
-  date.setDate(date.getDate() - diff * 7);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../getWeek/index.js":"../node_modules/date-fns/esm/getWeek/index.js"}],"../node_modules/date-fns/esm/setWeekYear/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = setWeekYear;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../toDate/index.js"));
-
-var _index3 = _interopRequireDefault(require("../startOfWeekYear/index.js"));
-
-var _index4 = _interopRequireDefault(require("../differenceInCalendarDays/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name setWeekYear
- * @category Week-Numbering Year Helpers
- * @summary Set the local week-numbering year to the given date.
- *
- * @description
- * Set the local week-numbering year to the given date,
- * saving the week number and the weekday number.
- * The exact calculation depends on the values of
- * `options.weekStartsOn` (which is the index of the first day of the week)
- * and `options.firstWeekContainsDate` (which is the day of January, which is always in
- * the first week of the week-numbering year)
- *
- * Week numbering: https://en.wikipedia.org/wiki/Week#Week_numbering
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} weekYear - the local week-numbering year of the new date
- * @param {Object} [options] - an object with options.
- * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
- * @param {1|2|3|4|5|6|7} [options.firstWeekContainsDate=1] - the day of January, which is always in the first week of the year
- * @returns {Date} the new date with the local week-numbering year set
- * @throws {TypeError} 2 arguments required
- * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
- * @throws {RangeError} `options.firstWeekContainsDate` must be between 1 and 7
- *
- * @example
- * // Set the local week-numbering year 2004 to 2 January 2010 with default options:
- * var result = setWeekYear(new Date(2010, 0, 2), 2004)
- * //=> Sat Jan 03 2004 00:00:00
- *
- * @example
- * // Set the local week-numbering year 2004 to 2 January 2010,
- * // if Monday is the first day of week
- * // and 4 January is always in the first week of the year:
- * var result = setWeekYear(new Date(2010, 0, 2), 2004, {
- *   weekStartsOn: 1,
- *   firstWeekContainsDate: 4
- * })
- * //=> Sat Jan 01 2005 00:00:00
- */
-function setWeekYear(dirtyDate, dirtyWeekYear, dirtyOptions) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var options = dirtyOptions || {};
-  var locale = options.locale;
-  var localeFirstWeekContainsDate = locale && locale.options && locale.options.firstWeekContainsDate;
-  var defaultFirstWeekContainsDate = localeFirstWeekContainsDate == null ? 1 : (0, _index.default)(localeFirstWeekContainsDate);
-  var firstWeekContainsDate = options.firstWeekContainsDate == null ? defaultFirstWeekContainsDate : (0, _index.default)(options.firstWeekContainsDate);
-  var date = (0, _index2.default)(dirtyDate);
-  var weekYear = (0, _index.default)(dirtyWeekYear);
-  var diff = (0, _index4.default)(date, (0, _index3.default)(date, dirtyOptions));
-  var firstWeek = new Date(0);
-  firstWeek.setFullYear(weekYear, 0, firstWeekContainsDate);
-  firstWeek.setHours(0, 0, 0, 0);
-  date = (0, _index3.default)(firstWeek, dirtyOptions);
-  date.setDate(date.getDate() + diff);
-  return date;
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js","../startOfWeekYear/index.js":"../node_modules/date-fns/esm/startOfWeekYear/index.js","../differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js"}],"../node_modules/date-fns/esm/setYear/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/setYear/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -59128,1652 +52119,208 @@ function setYear(dirtyDate, dirtyYear) {
   date.setFullYear(year);
   return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfDecade/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfMonth/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = startOfDecade;
+exports.default = startOfMonth;
 
 var _index = _interopRequireDefault(require("../toDate/index.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
- * @name startOfDecade
- * @category Decade Helpers
- * @summary Return the start of a decade for the given date.
+ * @name startOfMonth
+ * @category Month Helpers
+ * @summary Return the start of a month for the given date.
  *
  * @description
- * Return the start of a decade for the given date.
+ * Return the start of a month for the given date.
+ * The result will be in the local timezone.
  *
  * ### v2.0.0 breaking changes:
  *
  * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
  *
  * @param {Date|Number} date - the original date
- * @returns {Date} the start of a decade
+ * @returns {Date} the start of a month
  * @throws {TypeError} 1 argument required
  *
  * @example
- * // The start of a decade for 21 October 2015 00:00:00:
- * var result = startOfDecade(new Date(2015, 9, 21, 00, 00, 00))
- * //=> Jan 01 2010 00:00:00
+ * // The start of a month for 2 September 2014 11:55:00:
+ * var result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+ * //=> Mon Sep 01 2014 00:00:00
  */
-function startOfDecade(dirtyDate) {
+function startOfMonth(dirtyDate) {
   if (arguments.length < 1) {
     throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
   var date = (0, _index.default)(dirtyDate);
-  var year = date.getFullYear();
-  var decade = Math.floor(year / 10) * 10;
-  date.setFullYear(decade, 0, 1);
+  date.setDate(1);
   date.setHours(0, 0, 0, 0);
   return date;
 }
-},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/subDays/index.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/endOfMonth/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = subDays;
+exports.default = endOfMonth;
 
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addDays/index.js"));
+var _index = _interopRequireDefault(require("../toDate/index.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
- * @name subDays
- * @category Day Helpers
- * @summary Subtract the specified number of days from the given date.
- *
- * @description
- * Subtract the specified number of days from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of days to be subtracted
- * @returns {Date} the new date with the days subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 10 days from 1 September 2014:
- * var result = subDays(new Date(2014, 8, 1), 10)
- * //=> Fri Aug 22 2014 00:00:00
- */
-function subDays(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addDays/index.js":"../node_modules/date-fns/esm/addDays/index.js"}],"../node_modules/date-fns/esm/subHours/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subHours;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addHours/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subHours
- * @category Hour Helpers
- * @summary Subtract the specified number of hours from the given date.
- *
- * @description
- * Subtract the specified number of hours from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of hours to be subtracted
- * @returns {Date} the new date with the hours subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 2 hours from 11 July 2014 01:00:00:
- * var result = subHours(new Date(2014, 6, 11, 1, 0), 2)
- * //=> Thu Jul 10 2014 23:00:00
- */
-function subHours(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addHours/index.js":"../node_modules/date-fns/esm/addHours/index.js"}],"../node_modules/date-fns/esm/subMinutes/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subMinutes;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMinutes/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subMinutes
- * @category Minute Helpers
- * @summary Subtract the specified number of minutes from the given date.
- *
- * @description
- * Subtract the specified number of minutes from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of minutes to be subtracted
- * @returns {Date} the new date with the minutes subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 30 minutes from 10 July 2014 12:00:00:
- * var result = subMinutes(new Date(2014, 6, 10, 12, 0), 30)
- * //=> Thu Jul 10 2014 11:30:00
- */
-function subMinutes(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMinutes/index.js":"../node_modules/date-fns/esm/addMinutes/index.js"}],"../node_modules/date-fns/esm/subMonths/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subMonths;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addMonths/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subMonths
+ * @name endOfMonth
  * @category Month Helpers
- * @summary Subtract the specified number of months from the given date.
+ * @summary Return the end of a month for the given date.
  *
  * @description
- * Subtract the specified number of months from the given date.
+ * Return the end of a month for the given date.
+ * The result will be in the local timezone.
  *
  * ### v2.0.0 breaking changes:
  *
  * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
  *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of months to be subtracted
- * @returns {Date} the new date with the months subtracted
- * @throws {TypeError} 2 arguments required
+ * @param {Date|Number} date - the original date
+ * @returns {Date} the end of a month
+ * @throws {TypeError} 1 argument required
  *
  * @example
- * // Subtract 5 months from 1 February 2015:
- * var result = subMonths(new Date(2015, 1, 1), 5)
+ * // The end of a month for 2 September 2014 11:55:00:
+ * var result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+ * //=> Tue Sep 30 2014 23:59:59.999
+ */
+function endOfMonth(dirtyDate) {
+  if (arguments.length < 1) {
+    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
+  }
+
+  var date = (0, _index.default)(dirtyDate);
+  var month = date.getMonth();
+  date.setFullYear(date.getFullYear(), month + 1, 0);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfWeek/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = startOfWeek;
+
+var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
+
+var _index2 = _interopRequireDefault(require("../toDate/index.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * @name startOfWeek
+ * @category Week Helpers
+ * @summary Return the start of a week for the given date.
+ *
+ * @description
+ * Return the start of a week for the given date.
+ * The result will be in the local timezone.
+ *
+ * ### v2.0.0 breaking changes:
+ *
+ * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
+ *
+ * @param {Date|Number} date - the original date
+ * @param {Object} [options] - an object with options.
+ * @param {0|1|2|3|4|5|6} [options.weekStartsOn=0] - the index of the first day of the week (0 - Sunday)
+ * @param {Locale} [options.locale=defaultLocale] - the locale object. See [Locale]{@link https://date-fns.org/docs/Locale}
+ * @returns {Date} the start of a week
+ * @throws {TypeError} 1 argument required
+ * @throws {RangeError} `options.weekStartsOn` must be between 0 and 6
+ *
+ * @example
+ * // The start of a week for 2 September 2014 11:55:00:
+ * var result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+ * //=> Sun Aug 31 2014 00:00:00
+ *
+ * @example
+ * // If the week starts on Monday, the start of the week for 2 September 2014 11:55:00:
+ * var result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
  * //=> Mon Sep 01 2014 00:00:00
  */
-function subMonths(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
+function startOfWeek(dirtyDate, dirtyOptions) {
+  if (arguments.length < 1) {
+    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
+  var options = dirtyOptions || {};
+  var locale = options.locale;
+  var localeWeekStartsOn = locale && locale.options && locale.options.weekStartsOn;
+  var defaultWeekStartsOn = localeWeekStartsOn == null ? 0 : (0, _index.default)(localeWeekStartsOn);
+  var weekStartsOn = options.weekStartsOn == null ? defaultWeekStartsOn : (0, _index.default)(options.weekStartsOn); // Test if weekStartsOn is between 0 and 6 _and_ is not NaN
+
+  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
+    throw new RangeError('weekStartsOn must be between 0 and 6 inclusively');
+  }
+
+  var date = (0, _index2.default)(dirtyDate);
+  var day = date.getDay();
+  var diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+  date.setDate(date.getDate() - diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addMonths/index.js":"../node_modules/date-fns/esm/addMonths/index.js"}],"../node_modules/date-fns/esm/subQuarters/index.js":[function(require,module,exports) {
+},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/date-fns/esm/startOfYear/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = subQuarters;
+exports.default = startOfYear;
 
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addQuarters/index.js"));
+var _index = _interopRequireDefault(require("../toDate/index.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
- * @name subQuarters
- * @category Quarter Helpers
- * @summary Subtract the specified number of year quarters from the given date.
- *
- * @description
- * Subtract the specified number of year quarters from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of quarters to be subtracted
- * @returns {Date} the new date with the quarters subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 3 quarters from 1 September 2014:
- * var result = subQuarters(new Date(2014, 8, 1), 3)
- * //=> Sun Dec 01 2013 00:00:00
- */
-function subQuarters(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addQuarters/index.js":"../node_modules/date-fns/esm/addQuarters/index.js"}],"../node_modules/date-fns/esm/subSeconds/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subSeconds;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addSeconds/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subSeconds
- * @category Second Helpers
- * @summary Subtract the specified number of seconds from the given date.
- *
- * @description
- * Subtract the specified number of seconds from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of seconds to be subtracted
- * @returns {Date} the new date with the seconds subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 30 seconds from 10 July 2014 12:45:00:
- * var result = subSeconds(new Date(2014, 6, 10, 12, 45, 0), 30)
- * //=> Thu Jul 10 2014 12:44:30
- */
-function subSeconds(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addSeconds/index.js":"../node_modules/date-fns/esm/addSeconds/index.js"}],"../node_modules/date-fns/esm/subWeeks/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subWeeks;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addWeeks/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subWeeks
- * @category Week Helpers
- * @summary Subtract the specified number of weeks from the given date.
- *
- * @description
- * Subtract the specified number of weeks from the given date.
- *
- * ### v2.0.0 breaking changes:
- *
- * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
- *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of weeks to be subtracted
- * @returns {Date} the new date with the weeks subtracted
- * @throws {TypeError} 2 arguments required
- *
- * @example
- * // Subtract 4 weeks from 1 September 2014:
- * var result = subWeeks(new Date(2014, 8, 1), 4)
- * //=> Mon Aug 04 2014 00:00:00
- */
-function subWeeks(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
-  }
-
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
-}
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addWeeks/index.js":"../node_modules/date-fns/esm/addWeeks/index.js"}],"../node_modules/date-fns/esm/subYears/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = subYears;
-
-var _index = _interopRequireDefault(require("../_lib/toInteger/index.js"));
-
-var _index2 = _interopRequireDefault(require("../addYears/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * @name subYears
+ * @name startOfYear
  * @category Year Helpers
- * @summary Subtract the specified number of years from the given date.
+ * @summary Return the start of a year for the given date.
  *
  * @description
- * Subtract the specified number of years from the given date.
+ * Return the start of a year for the given date.
+ * The result will be in the local timezone.
  *
  * ### v2.0.0 breaking changes:
  *
  * - [Changes that are common for the whole library](https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#Common-Changes).
  *
- * @param {Date|Number} date - the date to be changed
- * @param {Number} amount - the amount of years to be subtracted
- * @returns {Date} the new date with the years subtracted
- * @throws {TypeError} 2 arguments required
+ * @param {Date|Number} date - the original date
+ * @returns {Date} the start of a year
+ * @throws {TypeError} 1 argument required
  *
  * @example
- * // Subtract 5 years from 1 September 2014:
- * var result = subYears(new Date(2014, 8, 1), 5)
- * //=> Tue Sep 01 2009 00:00:00
+ * // The start of a year for 2 September 2014 11:55:00:
+ * var result = startOfYear(new Date(2014, 8, 2, 11, 55, 00))
+ * //=> Wed Jan 01 2014 00:00:00
  */
-function subYears(dirtyDate, dirtyAmount) {
-  if (arguments.length < 2) {
-    throw new TypeError('2 arguments required, but only ' + arguments.length + ' present');
+function startOfYear(dirtyDate) {
+  if (arguments.length < 1) {
+    throw new TypeError('1 argument required, but only ' + arguments.length + ' present');
   }
 
-  var amount = (0, _index.default)(dirtyAmount);
-  return (0, _index2.default)(dirtyDate, -amount);
+  var cleanDate = (0, _index.default)(dirtyDate);
+  var date = new Date(0);
+  date.setFullYear(cleanDate.getFullYear(), 0, 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
-},{"../_lib/toInteger/index.js":"../node_modules/date-fns/esm/_lib/toInteger/index.js","../addYears/index.js":"../node_modules/date-fns/esm/addYears/index.js"}],"../node_modules/date-fns/esm/index.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-Object.defineProperty(exports, "addDays", {
-  enumerable: true,
-  get: function () {
-    return _index.default;
-  }
-});
-Object.defineProperty(exports, "addHours", {
-  enumerable: true,
-  get: function () {
-    return _index2.default;
-  }
-});
-Object.defineProperty(exports, "addISOWeekYears", {
-  enumerable: true,
-  get: function () {
-    return _index3.default;
-  }
-});
-Object.defineProperty(exports, "addMilliseconds", {
-  enumerable: true,
-  get: function () {
-    return _index4.default;
-  }
-});
-Object.defineProperty(exports, "addMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index5.default;
-  }
-});
-Object.defineProperty(exports, "addMonths", {
-  enumerable: true,
-  get: function () {
-    return _index6.default;
-  }
-});
-Object.defineProperty(exports, "addQuarters", {
-  enumerable: true,
-  get: function () {
-    return _index7.default;
-  }
-});
-Object.defineProperty(exports, "addSeconds", {
-  enumerable: true,
-  get: function () {
-    return _index8.default;
-  }
-});
-Object.defineProperty(exports, "addWeeks", {
-  enumerable: true,
-  get: function () {
-    return _index9.default;
-  }
-});
-Object.defineProperty(exports, "addYears", {
-  enumerable: true,
-  get: function () {
-    return _index10.default;
-  }
-});
-Object.defineProperty(exports, "areIntervalsOverlapping", {
-  enumerable: true,
-  get: function () {
-    return _index11.default;
-  }
-});
-Object.defineProperty(exports, "closestIndexTo", {
-  enumerable: true,
-  get: function () {
-    return _index12.default;
-  }
-});
-Object.defineProperty(exports, "closestTo", {
-  enumerable: true,
-  get: function () {
-    return _index13.default;
-  }
-});
-Object.defineProperty(exports, "compareAsc", {
-  enumerable: true,
-  get: function () {
-    return _index14.default;
-  }
-});
-Object.defineProperty(exports, "compareDesc", {
-  enumerable: true,
-  get: function () {
-    return _index15.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarDays", {
-  enumerable: true,
-  get: function () {
-    return _index16.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarISOWeekYears", {
-  enumerable: true,
-  get: function () {
-    return _index17.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarISOWeeks", {
-  enumerable: true,
-  get: function () {
-    return _index18.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarMonths", {
-  enumerable: true,
-  get: function () {
-    return _index19.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarQuarters", {
-  enumerable: true,
-  get: function () {
-    return _index20.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarWeeks", {
-  enumerable: true,
-  get: function () {
-    return _index21.default;
-  }
-});
-Object.defineProperty(exports, "differenceInCalendarYears", {
-  enumerable: true,
-  get: function () {
-    return _index22.default;
-  }
-});
-Object.defineProperty(exports, "differenceInDays", {
-  enumerable: true,
-  get: function () {
-    return _index23.default;
-  }
-});
-Object.defineProperty(exports, "differenceInHours", {
-  enumerable: true,
-  get: function () {
-    return _index24.default;
-  }
-});
-Object.defineProperty(exports, "differenceInISOWeekYears", {
-  enumerable: true,
-  get: function () {
-    return _index25.default;
-  }
-});
-Object.defineProperty(exports, "differenceInMilliseconds", {
-  enumerable: true,
-  get: function () {
-    return _index26.default;
-  }
-});
-Object.defineProperty(exports, "differenceInMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index27.default;
-  }
-});
-Object.defineProperty(exports, "differenceInMonths", {
-  enumerable: true,
-  get: function () {
-    return _index28.default;
-  }
-});
-Object.defineProperty(exports, "differenceInQuarters", {
-  enumerable: true,
-  get: function () {
-    return _index29.default;
-  }
-});
-Object.defineProperty(exports, "differenceInSeconds", {
-  enumerable: true,
-  get: function () {
-    return _index30.default;
-  }
-});
-Object.defineProperty(exports, "differenceInWeeks", {
-  enumerable: true,
-  get: function () {
-    return _index31.default;
-  }
-});
-Object.defineProperty(exports, "differenceInYears", {
-  enumerable: true,
-  get: function () {
-    return _index32.default;
-  }
-});
-Object.defineProperty(exports, "eachDayOfInterval", {
-  enumerable: true,
-  get: function () {
-    return _index33.default;
-  }
-});
-Object.defineProperty(exports, "eachWeekOfInterval", {
-  enumerable: true,
-  get: function () {
-    return _index34.default;
-  }
-});
-Object.defineProperty(exports, "eachWeekendOfInterval", {
-  enumerable: true,
-  get: function () {
-    return _index35.default;
-  }
-});
-Object.defineProperty(exports, "eachWeekendOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index36.default;
-  }
-});
-Object.defineProperty(exports, "eachWeekendOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index37.default;
-  }
-});
-Object.defineProperty(exports, "endOfDay", {
-  enumerable: true,
-  get: function () {
-    return _index38.default;
-  }
-});
-Object.defineProperty(exports, "endOfDecade", {
-  enumerable: true,
-  get: function () {
-    return _index39.default;
-  }
-});
-Object.defineProperty(exports, "endOfHour", {
-  enumerable: true,
-  get: function () {
-    return _index40.default;
-  }
-});
-Object.defineProperty(exports, "endOfISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index41.default;
-  }
-});
-Object.defineProperty(exports, "endOfISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index42.default;
-  }
-});
-Object.defineProperty(exports, "endOfMinute", {
-  enumerable: true,
-  get: function () {
-    return _index43.default;
-  }
-});
-Object.defineProperty(exports, "endOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index44.default;
-  }
-});
-Object.defineProperty(exports, "endOfQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index45.default;
-  }
-});
-Object.defineProperty(exports, "endOfSecond", {
-  enumerable: true,
-  get: function () {
-    return _index46.default;
-  }
-});
-Object.defineProperty(exports, "endOfWeek", {
-  enumerable: true,
-  get: function () {
-    return _index47.default;
-  }
-});
-Object.defineProperty(exports, "endOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index48.default;
-  }
-});
-Object.defineProperty(exports, "format", {
-  enumerable: true,
-  get: function () {
-    return _index49.default;
-  }
-});
-Object.defineProperty(exports, "formatDistance", {
-  enumerable: true,
-  get: function () {
-    return _index50.default;
-  }
-});
-Object.defineProperty(exports, "formatDistanceStrict", {
-  enumerable: true,
-  get: function () {
-    return _index51.default;
-  }
-});
-Object.defineProperty(exports, "formatRelative", {
-  enumerable: true,
-  get: function () {
-    return _index52.default;
-  }
-});
-Object.defineProperty(exports, "fromUnixTime", {
-  enumerable: true,
-  get: function () {
-    return _index53.default;
-  }
-});
-Object.defineProperty(exports, "getDate", {
-  enumerable: true,
-  get: function () {
-    return _index54.default;
-  }
-});
-Object.defineProperty(exports, "getDay", {
-  enumerable: true,
-  get: function () {
-    return _index55.default;
-  }
-});
-Object.defineProperty(exports, "getDayOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index56.default;
-  }
-});
-Object.defineProperty(exports, "getDaysInMonth", {
-  enumerable: true,
-  get: function () {
-    return _index57.default;
-  }
-});
-Object.defineProperty(exports, "getDaysInYear", {
-  enumerable: true,
-  get: function () {
-    return _index58.default;
-  }
-});
-Object.defineProperty(exports, "getDecade", {
-  enumerable: true,
-  get: function () {
-    return _index59.default;
-  }
-});
-Object.defineProperty(exports, "getHours", {
-  enumerable: true,
-  get: function () {
-    return _index60.default;
-  }
-});
-Object.defineProperty(exports, "getISODay", {
-  enumerable: true,
-  get: function () {
-    return _index61.default;
-  }
-});
-Object.defineProperty(exports, "getISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index62.default;
-  }
-});
-Object.defineProperty(exports, "getISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index63.default;
-  }
-});
-Object.defineProperty(exports, "getISOWeeksInYear", {
-  enumerable: true,
-  get: function () {
-    return _index64.default;
-  }
-});
-Object.defineProperty(exports, "getMilliseconds", {
-  enumerable: true,
-  get: function () {
-    return _index65.default;
-  }
-});
-Object.defineProperty(exports, "getMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index66.default;
-  }
-});
-Object.defineProperty(exports, "getMonth", {
-  enumerable: true,
-  get: function () {
-    return _index67.default;
-  }
-});
-Object.defineProperty(exports, "getOverlappingDaysInIntervals", {
-  enumerable: true,
-  get: function () {
-    return _index68.default;
-  }
-});
-Object.defineProperty(exports, "getQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index69.default;
-  }
-});
-Object.defineProperty(exports, "getSeconds", {
-  enumerable: true,
-  get: function () {
-    return _index70.default;
-  }
-});
-Object.defineProperty(exports, "getTime", {
-  enumerable: true,
-  get: function () {
-    return _index71.default;
-  }
-});
-Object.defineProperty(exports, "getUnixTime", {
-  enumerable: true,
-  get: function () {
-    return _index72.default;
-  }
-});
-Object.defineProperty(exports, "getWeek", {
-  enumerable: true,
-  get: function () {
-    return _index73.default;
-  }
-});
-Object.defineProperty(exports, "getWeekOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index74.default;
-  }
-});
-Object.defineProperty(exports, "getWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index75.default;
-  }
-});
-Object.defineProperty(exports, "getWeeksInMonth", {
-  enumerable: true,
-  get: function () {
-    return _index76.default;
-  }
-});
-Object.defineProperty(exports, "getYear", {
-  enumerable: true,
-  get: function () {
-    return _index77.default;
-  }
-});
-Object.defineProperty(exports, "isAfter", {
-  enumerable: true,
-  get: function () {
-    return _index78.default;
-  }
-});
-Object.defineProperty(exports, "isBefore", {
-  enumerable: true,
-  get: function () {
-    return _index79.default;
-  }
-});
-Object.defineProperty(exports, "isDate", {
-  enumerable: true,
-  get: function () {
-    return _index80.default;
-  }
-});
-Object.defineProperty(exports, "isEqual", {
-  enumerable: true,
-  get: function () {
-    return _index81.default;
-  }
-});
-Object.defineProperty(exports, "isFirstDayOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index82.default;
-  }
-});
-Object.defineProperty(exports, "isFriday", {
-  enumerable: true,
-  get: function () {
-    return _index83.default;
-  }
-});
-Object.defineProperty(exports, "isLastDayOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index84.default;
-  }
-});
-Object.defineProperty(exports, "isLeapYear", {
-  enumerable: true,
-  get: function () {
-    return _index85.default;
-  }
-});
-Object.defineProperty(exports, "isMonday", {
-  enumerable: true,
-  get: function () {
-    return _index86.default;
-  }
-});
-Object.defineProperty(exports, "isSameDay", {
-  enumerable: true,
-  get: function () {
-    return _index87.default;
-  }
-});
-Object.defineProperty(exports, "isSameHour", {
-  enumerable: true,
-  get: function () {
-    return _index88.default;
-  }
-});
-Object.defineProperty(exports, "isSameISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index89.default;
-  }
-});
-Object.defineProperty(exports, "isSameISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index90.default;
-  }
-});
-Object.defineProperty(exports, "isSameMinute", {
-  enumerable: true,
-  get: function () {
-    return _index91.default;
-  }
-});
-Object.defineProperty(exports, "isSameMonth", {
-  enumerable: true,
-  get: function () {
-    return _index92.default;
-  }
-});
-Object.defineProperty(exports, "isSameQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index93.default;
-  }
-});
-Object.defineProperty(exports, "isSameSecond", {
-  enumerable: true,
-  get: function () {
-    return _index94.default;
-  }
-});
-Object.defineProperty(exports, "isSameWeek", {
-  enumerable: true,
-  get: function () {
-    return _index95.default;
-  }
-});
-Object.defineProperty(exports, "isSameYear", {
-  enumerable: true,
-  get: function () {
-    return _index96.default;
-  }
-});
-Object.defineProperty(exports, "isSaturday", {
-  enumerable: true,
-  get: function () {
-    return _index97.default;
-  }
-});
-Object.defineProperty(exports, "isSunday", {
-  enumerable: true,
-  get: function () {
-    return _index98.default;
-  }
-});
-Object.defineProperty(exports, "isThursday", {
-  enumerable: true,
-  get: function () {
-    return _index99.default;
-  }
-});
-Object.defineProperty(exports, "isTuesday", {
-  enumerable: true,
-  get: function () {
-    return _index100.default;
-  }
-});
-Object.defineProperty(exports, "isValid", {
-  enumerable: true,
-  get: function () {
-    return _index101.default;
-  }
-});
-Object.defineProperty(exports, "isWednesday", {
-  enumerable: true,
-  get: function () {
-    return _index102.default;
-  }
-});
-Object.defineProperty(exports, "isWeekend", {
-  enumerable: true,
-  get: function () {
-    return _index103.default;
-  }
-});
-Object.defineProperty(exports, "isWithinInterval", {
-  enumerable: true,
-  get: function () {
-    return _index104.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfDecade", {
-  enumerable: true,
-  get: function () {
-    return _index105.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index106.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index107.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index108.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index109.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfWeek", {
-  enumerable: true,
-  get: function () {
-    return _index110.default;
-  }
-});
-Object.defineProperty(exports, "lastDayOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index111.default;
-  }
-});
-Object.defineProperty(exports, "lightFormat", {
-  enumerable: true,
-  get: function () {
-    return _index112.default;
-  }
-});
-Object.defineProperty(exports, "max", {
-  enumerable: true,
-  get: function () {
-    return _index113.default;
-  }
-});
-Object.defineProperty(exports, "min", {
-  enumerable: true,
-  get: function () {
-    return _index114.default;
-  }
-});
-Object.defineProperty(exports, "parse", {
-  enumerable: true,
-  get: function () {
-    return _index115.default;
-  }
-});
-Object.defineProperty(exports, "parseISO", {
-  enumerable: true,
-  get: function () {
-    return _index116.default;
-  }
-});
-Object.defineProperty(exports, "roundToNearestMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index117.default;
-  }
-});
-Object.defineProperty(exports, "setDate", {
-  enumerable: true,
-  get: function () {
-    return _index118.default;
-  }
-});
-Object.defineProperty(exports, "setDay", {
-  enumerable: true,
-  get: function () {
-    return _index119.default;
-  }
-});
-Object.defineProperty(exports, "setDayOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index120.default;
-  }
-});
-Object.defineProperty(exports, "setHours", {
-  enumerable: true,
-  get: function () {
-    return _index121.default;
-  }
-});
-Object.defineProperty(exports, "setISODay", {
-  enumerable: true,
-  get: function () {
-    return _index122.default;
-  }
-});
-Object.defineProperty(exports, "setISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index123.default;
-  }
-});
-Object.defineProperty(exports, "setISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index124.default;
-  }
-});
-Object.defineProperty(exports, "setMilliseconds", {
-  enumerable: true,
-  get: function () {
-    return _index125.default;
-  }
-});
-Object.defineProperty(exports, "setMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index126.default;
-  }
-});
-Object.defineProperty(exports, "setMonth", {
-  enumerable: true,
-  get: function () {
-    return _index127.default;
-  }
-});
-Object.defineProperty(exports, "setQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index128.default;
-  }
-});
-Object.defineProperty(exports, "setSeconds", {
-  enumerable: true,
-  get: function () {
-    return _index129.default;
-  }
-});
-Object.defineProperty(exports, "setWeek", {
-  enumerable: true,
-  get: function () {
-    return _index130.default;
-  }
-});
-Object.defineProperty(exports, "setWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index131.default;
-  }
-});
-Object.defineProperty(exports, "setYear", {
-  enumerable: true,
-  get: function () {
-    return _index132.default;
-  }
-});
-Object.defineProperty(exports, "startOfDay", {
-  enumerable: true,
-  get: function () {
-    return _index133.default;
-  }
-});
-Object.defineProperty(exports, "startOfDecade", {
-  enumerable: true,
-  get: function () {
-    return _index134.default;
-  }
-});
-Object.defineProperty(exports, "startOfHour", {
-  enumerable: true,
-  get: function () {
-    return _index135.default;
-  }
-});
-Object.defineProperty(exports, "startOfISOWeek", {
-  enumerable: true,
-  get: function () {
-    return _index136.default;
-  }
-});
-Object.defineProperty(exports, "startOfISOWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index137.default;
-  }
-});
-Object.defineProperty(exports, "startOfMinute", {
-  enumerable: true,
-  get: function () {
-    return _index138.default;
-  }
-});
-Object.defineProperty(exports, "startOfMonth", {
-  enumerable: true,
-  get: function () {
-    return _index139.default;
-  }
-});
-Object.defineProperty(exports, "startOfQuarter", {
-  enumerable: true,
-  get: function () {
-    return _index140.default;
-  }
-});
-Object.defineProperty(exports, "startOfSecond", {
-  enumerable: true,
-  get: function () {
-    return _index141.default;
-  }
-});
-Object.defineProperty(exports, "startOfWeek", {
-  enumerable: true,
-  get: function () {
-    return _index142.default;
-  }
-});
-Object.defineProperty(exports, "startOfWeekYear", {
-  enumerable: true,
-  get: function () {
-    return _index143.default;
-  }
-});
-Object.defineProperty(exports, "startOfYear", {
-  enumerable: true,
-  get: function () {
-    return _index144.default;
-  }
-});
-Object.defineProperty(exports, "subDays", {
-  enumerable: true,
-  get: function () {
-    return _index145.default;
-  }
-});
-Object.defineProperty(exports, "subHours", {
-  enumerable: true,
-  get: function () {
-    return _index146.default;
-  }
-});
-Object.defineProperty(exports, "subISOWeekYears", {
-  enumerable: true,
-  get: function () {
-    return _index147.default;
-  }
-});
-Object.defineProperty(exports, "subMilliseconds", {
-  enumerable: true,
-  get: function () {
-    return _index148.default;
-  }
-});
-Object.defineProperty(exports, "subMinutes", {
-  enumerable: true,
-  get: function () {
-    return _index149.default;
-  }
-});
-Object.defineProperty(exports, "subMonths", {
-  enumerable: true,
-  get: function () {
-    return _index150.default;
-  }
-});
-Object.defineProperty(exports, "subQuarters", {
-  enumerable: true,
-  get: function () {
-    return _index151.default;
-  }
-});
-Object.defineProperty(exports, "subSeconds", {
-  enumerable: true,
-  get: function () {
-    return _index152.default;
-  }
-});
-Object.defineProperty(exports, "subWeeks", {
-  enumerable: true,
-  get: function () {
-    return _index153.default;
-  }
-});
-Object.defineProperty(exports, "subYears", {
-  enumerable: true,
-  get: function () {
-    return _index154.default;
-  }
-});
-Object.defineProperty(exports, "toDate", {
-  enumerable: true,
-  get: function () {
-    return _index155.default;
-  }
-});
-
-var _index = _interopRequireDefault(require("./addDays/index.js"));
-
-var _index2 = _interopRequireDefault(require("./addHours/index.js"));
-
-var _index3 = _interopRequireDefault(require("./addISOWeekYears/index.js"));
-
-var _index4 = _interopRequireDefault(require("./addMilliseconds/index.js"));
-
-var _index5 = _interopRequireDefault(require("./addMinutes/index.js"));
-
-var _index6 = _interopRequireDefault(require("./addMonths/index.js"));
-
-var _index7 = _interopRequireDefault(require("./addQuarters/index.js"));
-
-var _index8 = _interopRequireDefault(require("./addSeconds/index.js"));
-
-var _index9 = _interopRequireDefault(require("./addWeeks/index.js"));
-
-var _index10 = _interopRequireDefault(require("./addYears/index.js"));
-
-var _index11 = _interopRequireDefault(require("./areIntervalsOverlapping/index.js"));
-
-var _index12 = _interopRequireDefault(require("./closestIndexTo/index.js"));
-
-var _index13 = _interopRequireDefault(require("./closestTo/index.js"));
-
-var _index14 = _interopRequireDefault(require("./compareAsc/index.js"));
-
-var _index15 = _interopRequireDefault(require("./compareDesc/index.js"));
-
-var _index16 = _interopRequireDefault(require("./differenceInCalendarDays/index.js"));
-
-var _index17 = _interopRequireDefault(require("./differenceInCalendarISOWeekYears/index.js"));
-
-var _index18 = _interopRequireDefault(require("./differenceInCalendarISOWeeks/index.js"));
-
-var _index19 = _interopRequireDefault(require("./differenceInCalendarMonths/index.js"));
-
-var _index20 = _interopRequireDefault(require("./differenceInCalendarQuarters/index.js"));
-
-var _index21 = _interopRequireDefault(require("./differenceInCalendarWeeks/index.js"));
-
-var _index22 = _interopRequireDefault(require("./differenceInCalendarYears/index.js"));
-
-var _index23 = _interopRequireDefault(require("./differenceInDays/index.js"));
-
-var _index24 = _interopRequireDefault(require("./differenceInHours/index.js"));
-
-var _index25 = _interopRequireDefault(require("./differenceInISOWeekYears/index.js"));
-
-var _index26 = _interopRequireDefault(require("./differenceInMilliseconds/index.js"));
-
-var _index27 = _interopRequireDefault(require("./differenceInMinutes/index.js"));
-
-var _index28 = _interopRequireDefault(require("./differenceInMonths/index.js"));
-
-var _index29 = _interopRequireDefault(require("./differenceInQuarters/index.js"));
-
-var _index30 = _interopRequireDefault(require("./differenceInSeconds/index.js"));
-
-var _index31 = _interopRequireDefault(require("./differenceInWeeks/index.js"));
-
-var _index32 = _interopRequireDefault(require("./differenceInYears/index.js"));
-
-var _index33 = _interopRequireDefault(require("./eachDayOfInterval/index.js"));
-
-var _index34 = _interopRequireDefault(require("./eachWeekOfInterval/index.js"));
-
-var _index35 = _interopRequireDefault(require("./eachWeekendOfInterval/index.js"));
-
-var _index36 = _interopRequireDefault(require("./eachWeekendOfMonth/index.js"));
-
-var _index37 = _interopRequireDefault(require("./eachWeekendOfYear/index.js"));
-
-var _index38 = _interopRequireDefault(require("./endOfDay/index.js"));
-
-var _index39 = _interopRequireDefault(require("./endOfDecade/index.js"));
-
-var _index40 = _interopRequireDefault(require("./endOfHour/index.js"));
-
-var _index41 = _interopRequireDefault(require("./endOfISOWeek/index.js"));
-
-var _index42 = _interopRequireDefault(require("./endOfISOWeekYear/index.js"));
-
-var _index43 = _interopRequireDefault(require("./endOfMinute/index.js"));
-
-var _index44 = _interopRequireDefault(require("./endOfMonth/index.js"));
-
-var _index45 = _interopRequireDefault(require("./endOfQuarter/index.js"));
-
-var _index46 = _interopRequireDefault(require("./endOfSecond/index.js"));
-
-var _index47 = _interopRequireDefault(require("./endOfWeek/index.js"));
-
-var _index48 = _interopRequireDefault(require("./endOfYear/index.js"));
-
-var _index49 = _interopRequireDefault(require("./format/index.js"));
-
-var _index50 = _interopRequireDefault(require("./formatDistance/index.js"));
-
-var _index51 = _interopRequireDefault(require("./formatDistanceStrict/index.js"));
-
-var _index52 = _interopRequireDefault(require("./formatRelative/index.js"));
-
-var _index53 = _interopRequireDefault(require("./fromUnixTime/index.js"));
-
-var _index54 = _interopRequireDefault(require("./getDate/index.js"));
-
-var _index55 = _interopRequireDefault(require("./getDay/index.js"));
-
-var _index56 = _interopRequireDefault(require("./getDayOfYear/index.js"));
-
-var _index57 = _interopRequireDefault(require("./getDaysInMonth/index.js"));
-
-var _index58 = _interopRequireDefault(require("./getDaysInYear/index.js"));
-
-var _index59 = _interopRequireDefault(require("./getDecade/index.js"));
-
-var _index60 = _interopRequireDefault(require("./getHours/index.js"));
-
-var _index61 = _interopRequireDefault(require("./getISODay/index.js"));
-
-var _index62 = _interopRequireDefault(require("./getISOWeek/index.js"));
-
-var _index63 = _interopRequireDefault(require("./getISOWeekYear/index.js"));
-
-var _index64 = _interopRequireDefault(require("./getISOWeeksInYear/index.js"));
-
-var _index65 = _interopRequireDefault(require("./getMilliseconds/index.js"));
-
-var _index66 = _interopRequireDefault(require("./getMinutes/index.js"));
-
-var _index67 = _interopRequireDefault(require("./getMonth/index.js"));
-
-var _index68 = _interopRequireDefault(require("./getOverlappingDaysInIntervals/index.js"));
-
-var _index69 = _interopRequireDefault(require("./getQuarter/index.js"));
-
-var _index70 = _interopRequireDefault(require("./getSeconds/index.js"));
-
-var _index71 = _interopRequireDefault(require("./getTime/index.js"));
-
-var _index72 = _interopRequireDefault(require("./getUnixTime/index.js"));
-
-var _index73 = _interopRequireDefault(require("./getWeek/index.js"));
-
-var _index74 = _interopRequireDefault(require("./getWeekOfMonth/index.js"));
-
-var _index75 = _interopRequireDefault(require("./getWeekYear/index.js"));
-
-var _index76 = _interopRequireDefault(require("./getWeeksInMonth/index.js"));
-
-var _index77 = _interopRequireDefault(require("./getYear/index.js"));
-
-var _index78 = _interopRequireDefault(require("./isAfter/index.js"));
-
-var _index79 = _interopRequireDefault(require("./isBefore/index.js"));
-
-var _index80 = _interopRequireDefault(require("./isDate/index.js"));
-
-var _index81 = _interopRequireDefault(require("./isEqual/index.js"));
-
-var _index82 = _interopRequireDefault(require("./isFirstDayOfMonth/index.js"));
-
-var _index83 = _interopRequireDefault(require("./isFriday/index.js"));
-
-var _index84 = _interopRequireDefault(require("./isLastDayOfMonth/index.js"));
-
-var _index85 = _interopRequireDefault(require("./isLeapYear/index.js"));
-
-var _index86 = _interopRequireDefault(require("./isMonday/index.js"));
-
-var _index87 = _interopRequireDefault(require("./isSameDay/index.js"));
-
-var _index88 = _interopRequireDefault(require("./isSameHour/index.js"));
-
-var _index89 = _interopRequireDefault(require("./isSameISOWeek/index.js"));
-
-var _index90 = _interopRequireDefault(require("./isSameISOWeekYear/index.js"));
-
-var _index91 = _interopRequireDefault(require("./isSameMinute/index.js"));
-
-var _index92 = _interopRequireDefault(require("./isSameMonth/index.js"));
-
-var _index93 = _interopRequireDefault(require("./isSameQuarter/index.js"));
-
-var _index94 = _interopRequireDefault(require("./isSameSecond/index.js"));
-
-var _index95 = _interopRequireDefault(require("./isSameWeek/index.js"));
-
-var _index96 = _interopRequireDefault(require("./isSameYear/index.js"));
-
-var _index97 = _interopRequireDefault(require("./isSaturday/index.js"));
-
-var _index98 = _interopRequireDefault(require("./isSunday/index.js"));
-
-var _index99 = _interopRequireDefault(require("./isThursday/index.js"));
-
-var _index100 = _interopRequireDefault(require("./isTuesday/index.js"));
-
-var _index101 = _interopRequireDefault(require("./isValid/index.js"));
-
-var _index102 = _interopRequireDefault(require("./isWednesday/index.js"));
-
-var _index103 = _interopRequireDefault(require("./isWeekend/index.js"));
-
-var _index104 = _interopRequireDefault(require("./isWithinInterval/index.js"));
-
-var _index105 = _interopRequireDefault(require("./lastDayOfDecade/index.js"));
-
-var _index106 = _interopRequireDefault(require("./lastDayOfISOWeek/index.js"));
-
-var _index107 = _interopRequireDefault(require("./lastDayOfISOWeekYear/index.js"));
-
-var _index108 = _interopRequireDefault(require("./lastDayOfMonth/index.js"));
-
-var _index109 = _interopRequireDefault(require("./lastDayOfQuarter/index.js"));
-
-var _index110 = _interopRequireDefault(require("./lastDayOfWeek/index.js"));
-
-var _index111 = _interopRequireDefault(require("./lastDayOfYear/index.js"));
-
-var _index112 = _interopRequireDefault(require("./lightFormat/index.js"));
-
-var _index113 = _interopRequireDefault(require("./max/index.js"));
-
-var _index114 = _interopRequireDefault(require("./min/index.js"));
-
-var _index115 = _interopRequireDefault(require("./parse/index.js"));
-
-var _index116 = _interopRequireDefault(require("./parseISO/index.js"));
-
-var _index117 = _interopRequireDefault(require("./roundToNearestMinutes/index.js"));
-
-var _index118 = _interopRequireDefault(require("./setDate/index.js"));
-
-var _index119 = _interopRequireDefault(require("./setDay/index.js"));
-
-var _index120 = _interopRequireDefault(require("./setDayOfYear/index.js"));
-
-var _index121 = _interopRequireDefault(require("./setHours/index.js"));
-
-var _index122 = _interopRequireDefault(require("./setISODay/index.js"));
-
-var _index123 = _interopRequireDefault(require("./setISOWeek/index.js"));
-
-var _index124 = _interopRequireDefault(require("./setISOWeekYear/index.js"));
-
-var _index125 = _interopRequireDefault(require("./setMilliseconds/index.js"));
-
-var _index126 = _interopRequireDefault(require("./setMinutes/index.js"));
-
-var _index127 = _interopRequireDefault(require("./setMonth/index.js"));
-
-var _index128 = _interopRequireDefault(require("./setQuarter/index.js"));
-
-var _index129 = _interopRequireDefault(require("./setSeconds/index.js"));
-
-var _index130 = _interopRequireDefault(require("./setWeek/index.js"));
-
-var _index131 = _interopRequireDefault(require("./setWeekYear/index.js"));
-
-var _index132 = _interopRequireDefault(require("./setYear/index.js"));
-
-var _index133 = _interopRequireDefault(require("./startOfDay/index.js"));
-
-var _index134 = _interopRequireDefault(require("./startOfDecade/index.js"));
-
-var _index135 = _interopRequireDefault(require("./startOfHour/index.js"));
-
-var _index136 = _interopRequireDefault(require("./startOfISOWeek/index.js"));
-
-var _index137 = _interopRequireDefault(require("./startOfISOWeekYear/index.js"));
-
-var _index138 = _interopRequireDefault(require("./startOfMinute/index.js"));
-
-var _index139 = _interopRequireDefault(require("./startOfMonth/index.js"));
-
-var _index140 = _interopRequireDefault(require("./startOfQuarter/index.js"));
-
-var _index141 = _interopRequireDefault(require("./startOfSecond/index.js"));
-
-var _index142 = _interopRequireDefault(require("./startOfWeek/index.js"));
-
-var _index143 = _interopRequireDefault(require("./startOfWeekYear/index.js"));
-
-var _index144 = _interopRequireDefault(require("./startOfYear/index.js"));
-
-var _index145 = _interopRequireDefault(require("./subDays/index.js"));
-
-var _index146 = _interopRequireDefault(require("./subHours/index.js"));
-
-var _index147 = _interopRequireDefault(require("./subISOWeekYears/index.js"));
-
-var _index148 = _interopRequireDefault(require("./subMilliseconds/index.js"));
-
-var _index149 = _interopRequireDefault(require("./subMinutes/index.js"));
-
-var _index150 = _interopRequireDefault(require("./subMonths/index.js"));
-
-var _index151 = _interopRequireDefault(require("./subQuarters/index.js"));
-
-var _index152 = _interopRequireDefault(require("./subSeconds/index.js"));
-
-var _index153 = _interopRequireDefault(require("./subWeeks/index.js"));
-
-var _index154 = _interopRequireDefault(require("./subYears/index.js"));
-
-var _index155 = _interopRequireDefault(require("./toDate/index.js"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-},{"./addDays/index.js":"../node_modules/date-fns/esm/addDays/index.js","./addHours/index.js":"../node_modules/date-fns/esm/addHours/index.js","./addISOWeekYears/index.js":"../node_modules/date-fns/esm/addISOWeekYears/index.js","./addMilliseconds/index.js":"../node_modules/date-fns/esm/addMilliseconds/index.js","./addMinutes/index.js":"../node_modules/date-fns/esm/addMinutes/index.js","./addMonths/index.js":"../node_modules/date-fns/esm/addMonths/index.js","./addQuarters/index.js":"../node_modules/date-fns/esm/addQuarters/index.js","./addSeconds/index.js":"../node_modules/date-fns/esm/addSeconds/index.js","./addWeeks/index.js":"../node_modules/date-fns/esm/addWeeks/index.js","./addYears/index.js":"../node_modules/date-fns/esm/addYears/index.js","./areIntervalsOverlapping/index.js":"../node_modules/date-fns/esm/areIntervalsOverlapping/index.js","./closestIndexTo/index.js":"../node_modules/date-fns/esm/closestIndexTo/index.js","./closestTo/index.js":"../node_modules/date-fns/esm/closestTo/index.js","./compareAsc/index.js":"../node_modules/date-fns/esm/compareAsc/index.js","./compareDesc/index.js":"../node_modules/date-fns/esm/compareDesc/index.js","./differenceInCalendarDays/index.js":"../node_modules/date-fns/esm/differenceInCalendarDays/index.js","./differenceInCalendarISOWeekYears/index.js":"../node_modules/date-fns/esm/differenceInCalendarISOWeekYears/index.js","./differenceInCalendarISOWeeks/index.js":"../node_modules/date-fns/esm/differenceInCalendarISOWeeks/index.js","./differenceInCalendarMonths/index.js":"../node_modules/date-fns/esm/differenceInCalendarMonths/index.js","./differenceInCalendarQuarters/index.js":"../node_modules/date-fns/esm/differenceInCalendarQuarters/index.js","./differenceInCalendarWeeks/index.js":"../node_modules/date-fns/esm/differenceInCalendarWeeks/index.js","./differenceInCalendarYears/index.js":"../node_modules/date-fns/esm/differenceInCalendarYears/index.js","./differenceInDays/index.js":"../node_modules/date-fns/esm/differenceInDays/index.js","./differenceInHours/index.js":"../node_modules/date-fns/esm/differenceInHours/index.js","./differenceInISOWeekYears/index.js":"../node_modules/date-fns/esm/differenceInISOWeekYears/index.js","./differenceInMilliseconds/index.js":"../node_modules/date-fns/esm/differenceInMilliseconds/index.js","./differenceInMinutes/index.js":"../node_modules/date-fns/esm/differenceInMinutes/index.js","./differenceInMonths/index.js":"../node_modules/date-fns/esm/differenceInMonths/index.js","./differenceInQuarters/index.js":"../node_modules/date-fns/esm/differenceInQuarters/index.js","./differenceInSeconds/index.js":"../node_modules/date-fns/esm/differenceInSeconds/index.js","./differenceInWeeks/index.js":"../node_modules/date-fns/esm/differenceInWeeks/index.js","./differenceInYears/index.js":"../node_modules/date-fns/esm/differenceInYears/index.js","./eachDayOfInterval/index.js":"../node_modules/date-fns/esm/eachDayOfInterval/index.js","./eachWeekOfInterval/index.js":"../node_modules/date-fns/esm/eachWeekOfInterval/index.js","./eachWeekendOfInterval/index.js":"../node_modules/date-fns/esm/eachWeekendOfInterval/index.js","./eachWeekendOfMonth/index.js":"../node_modules/date-fns/esm/eachWeekendOfMonth/index.js","./eachWeekendOfYear/index.js":"../node_modules/date-fns/esm/eachWeekendOfYear/index.js","./endOfDay/index.js":"../node_modules/date-fns/esm/endOfDay/index.js","./endOfDecade/index.js":"../node_modules/date-fns/esm/endOfDecade/index.js","./endOfHour/index.js":"../node_modules/date-fns/esm/endOfHour/index.js","./endOfISOWeek/index.js":"../node_modules/date-fns/esm/endOfISOWeek/index.js","./endOfISOWeekYear/index.js":"../node_modules/date-fns/esm/endOfISOWeekYear/index.js","./endOfMinute/index.js":"../node_modules/date-fns/esm/endOfMinute/index.js","./endOfMonth/index.js":"../node_modules/date-fns/esm/endOfMonth/index.js","./endOfQuarter/index.js":"../node_modules/date-fns/esm/endOfQuarter/index.js","./endOfSecond/index.js":"../node_modules/date-fns/esm/endOfSecond/index.js","./endOfWeek/index.js":"../node_modules/date-fns/esm/endOfWeek/index.js","./endOfYear/index.js":"../node_modules/date-fns/esm/endOfYear/index.js","./format/index.js":"../node_modules/date-fns/esm/format/index.js","./formatDistance/index.js":"../node_modules/date-fns/esm/formatDistance/index.js","./formatDistanceStrict/index.js":"../node_modules/date-fns/esm/formatDistanceStrict/index.js","./formatRelative/index.js":"../node_modules/date-fns/esm/formatRelative/index.js","./fromUnixTime/index.js":"../node_modules/date-fns/esm/fromUnixTime/index.js","./getDate/index.js":"../node_modules/date-fns/esm/getDate/index.js","./getDay/index.js":"../node_modules/date-fns/esm/getDay/index.js","./getDayOfYear/index.js":"../node_modules/date-fns/esm/getDayOfYear/index.js","./getDaysInMonth/index.js":"../node_modules/date-fns/esm/getDaysInMonth/index.js","./getDaysInYear/index.js":"../node_modules/date-fns/esm/getDaysInYear/index.js","./getDecade/index.js":"../node_modules/date-fns/esm/getDecade/index.js","./getHours/index.js":"../node_modules/date-fns/esm/getHours/index.js","./getISODay/index.js":"../node_modules/date-fns/esm/getISODay/index.js","./getISOWeek/index.js":"../node_modules/date-fns/esm/getISOWeek/index.js","./getISOWeekYear/index.js":"../node_modules/date-fns/esm/getISOWeekYear/index.js","./getISOWeeksInYear/index.js":"../node_modules/date-fns/esm/getISOWeeksInYear/index.js","./getMilliseconds/index.js":"../node_modules/date-fns/esm/getMilliseconds/index.js","./getMinutes/index.js":"../node_modules/date-fns/esm/getMinutes/index.js","./getMonth/index.js":"../node_modules/date-fns/esm/getMonth/index.js","./getOverlappingDaysInIntervals/index.js":"../node_modules/date-fns/esm/getOverlappingDaysInIntervals/index.js","./getQuarter/index.js":"../node_modules/date-fns/esm/getQuarter/index.js","./getSeconds/index.js":"../node_modules/date-fns/esm/getSeconds/index.js","./getTime/index.js":"../node_modules/date-fns/esm/getTime/index.js","./getUnixTime/index.js":"../node_modules/date-fns/esm/getUnixTime/index.js","./getWeek/index.js":"../node_modules/date-fns/esm/getWeek/index.js","./getWeekOfMonth/index.js":"../node_modules/date-fns/esm/getWeekOfMonth/index.js","./getWeekYear/index.js":"../node_modules/date-fns/esm/getWeekYear/index.js","./getWeeksInMonth/index.js":"../node_modules/date-fns/esm/getWeeksInMonth/index.js","./getYear/index.js":"../node_modules/date-fns/esm/getYear/index.js","./isAfter/index.js":"../node_modules/date-fns/esm/isAfter/index.js","./isBefore/index.js":"../node_modules/date-fns/esm/isBefore/index.js","./isDate/index.js":"../node_modules/date-fns/esm/isDate/index.js","./isEqual/index.js":"../node_modules/date-fns/esm/isEqual/index.js","./isFirstDayOfMonth/index.js":"../node_modules/date-fns/esm/isFirstDayOfMonth/index.js","./isFriday/index.js":"../node_modules/date-fns/esm/isFriday/index.js","./isLastDayOfMonth/index.js":"../node_modules/date-fns/esm/isLastDayOfMonth/index.js","./isLeapYear/index.js":"../node_modules/date-fns/esm/isLeapYear/index.js","./isMonday/index.js":"../node_modules/date-fns/esm/isMonday/index.js","./isSameDay/index.js":"../node_modules/date-fns/esm/isSameDay/index.js","./isSameHour/index.js":"../node_modules/date-fns/esm/isSameHour/index.js","./isSameISOWeek/index.js":"../node_modules/date-fns/esm/isSameISOWeek/index.js","./isSameISOWeekYear/index.js":"../node_modules/date-fns/esm/isSameISOWeekYear/index.js","./isSameMinute/index.js":"../node_modules/date-fns/esm/isSameMinute/index.js","./isSameMonth/index.js":"../node_modules/date-fns/esm/isSameMonth/index.js","./isSameQuarter/index.js":"../node_modules/date-fns/esm/isSameQuarter/index.js","./isSameSecond/index.js":"../node_modules/date-fns/esm/isSameSecond/index.js","./isSameWeek/index.js":"../node_modules/date-fns/esm/isSameWeek/index.js","./isSameYear/index.js":"../node_modules/date-fns/esm/isSameYear/index.js","./isSaturday/index.js":"../node_modules/date-fns/esm/isSaturday/index.js","./isSunday/index.js":"../node_modules/date-fns/esm/isSunday/index.js","./isThursday/index.js":"../node_modules/date-fns/esm/isThursday/index.js","./isTuesday/index.js":"../node_modules/date-fns/esm/isTuesday/index.js","./isValid/index.js":"../node_modules/date-fns/esm/isValid/index.js","./isWednesday/index.js":"../node_modules/date-fns/esm/isWednesday/index.js","./isWeekend/index.js":"../node_modules/date-fns/esm/isWeekend/index.js","./isWithinInterval/index.js":"../node_modules/date-fns/esm/isWithinInterval/index.js","./lastDayOfDecade/index.js":"../node_modules/date-fns/esm/lastDayOfDecade/index.js","./lastDayOfISOWeek/index.js":"../node_modules/date-fns/esm/lastDayOfISOWeek/index.js","./lastDayOfISOWeekYear/index.js":"../node_modules/date-fns/esm/lastDayOfISOWeekYear/index.js","./lastDayOfMonth/index.js":"../node_modules/date-fns/esm/lastDayOfMonth/index.js","./lastDayOfQuarter/index.js":"../node_modules/date-fns/esm/lastDayOfQuarter/index.js","./lastDayOfWeek/index.js":"../node_modules/date-fns/esm/lastDayOfWeek/index.js","./lastDayOfYear/index.js":"../node_modules/date-fns/esm/lastDayOfYear/index.js","./lightFormat/index.js":"../node_modules/date-fns/esm/lightFormat/index.js","./max/index.js":"../node_modules/date-fns/esm/max/index.js","./min/index.js":"../node_modules/date-fns/esm/min/index.js","./parse/index.js":"../node_modules/date-fns/esm/parse/index.js","./parseISO/index.js":"../node_modules/date-fns/esm/parseISO/index.js","./roundToNearestMinutes/index.js":"../node_modules/date-fns/esm/roundToNearestMinutes/index.js","./setDate/index.js":"../node_modules/date-fns/esm/setDate/index.js","./setDay/index.js":"../node_modules/date-fns/esm/setDay/index.js","./setDayOfYear/index.js":"../node_modules/date-fns/esm/setDayOfYear/index.js","./setHours/index.js":"../node_modules/date-fns/esm/setHours/index.js","./setISODay/index.js":"../node_modules/date-fns/esm/setISODay/index.js","./setISOWeek/index.js":"../node_modules/date-fns/esm/setISOWeek/index.js","./setISOWeekYear/index.js":"../node_modules/date-fns/esm/setISOWeekYear/index.js","./setMilliseconds/index.js":"../node_modules/date-fns/esm/setMilliseconds/index.js","./setMinutes/index.js":"../node_modules/date-fns/esm/setMinutes/index.js","./setMonth/index.js":"../node_modules/date-fns/esm/setMonth/index.js","./setQuarter/index.js":"../node_modules/date-fns/esm/setQuarter/index.js","./setSeconds/index.js":"../node_modules/date-fns/esm/setSeconds/index.js","./setWeek/index.js":"../node_modules/date-fns/esm/setWeek/index.js","./setWeekYear/index.js":"../node_modules/date-fns/esm/setWeekYear/index.js","./setYear/index.js":"../node_modules/date-fns/esm/setYear/index.js","./startOfDay/index.js":"../node_modules/date-fns/esm/startOfDay/index.js","./startOfDecade/index.js":"../node_modules/date-fns/esm/startOfDecade/index.js","./startOfHour/index.js":"../node_modules/date-fns/esm/startOfHour/index.js","./startOfISOWeek/index.js":"../node_modules/date-fns/esm/startOfISOWeek/index.js","./startOfISOWeekYear/index.js":"../node_modules/date-fns/esm/startOfISOWeekYear/index.js","./startOfMinute/index.js":"../node_modules/date-fns/esm/startOfMinute/index.js","./startOfMonth/index.js":"../node_modules/date-fns/esm/startOfMonth/index.js","./startOfQuarter/index.js":"../node_modules/date-fns/esm/startOfQuarter/index.js","./startOfSecond/index.js":"../node_modules/date-fns/esm/startOfSecond/index.js","./startOfWeek/index.js":"../node_modules/date-fns/esm/startOfWeek/index.js","./startOfWeekYear/index.js":"../node_modules/date-fns/esm/startOfWeekYear/index.js","./startOfYear/index.js":"../node_modules/date-fns/esm/startOfYear/index.js","./subDays/index.js":"../node_modules/date-fns/esm/subDays/index.js","./subHours/index.js":"../node_modules/date-fns/esm/subHours/index.js","./subISOWeekYears/index.js":"../node_modules/date-fns/esm/subISOWeekYears/index.js","./subMilliseconds/index.js":"../node_modules/date-fns/esm/subMilliseconds/index.js","./subMinutes/index.js":"../node_modules/date-fns/esm/subMinutes/index.js","./subMonths/index.js":"../node_modules/date-fns/esm/subMonths/index.js","./subQuarters/index.js":"../node_modules/date-fns/esm/subQuarters/index.js","./subSeconds/index.js":"../node_modules/date-fns/esm/subSeconds/index.js","./subWeeks/index.js":"../node_modules/date-fns/esm/subWeeks/index.js","./subYears/index.js":"../node_modules/date-fns/esm/subYears/index.js","./toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/@date-io/date-fns/build/index.esm.js":[function(require,module,exports) {
+},{"../toDate/index.js":"../node_modules/date-fns/esm/toDate/index.js"}],"../node_modules/@date-io/date-fns/build/index.esm.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -91647,29 +83194,37 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.DatePickerComponent = void 0;
 
-require("date-fns");
-
-var _react = _interopRequireDefault(require("react"));
+var _react = _interopRequireWildcard(require("react"));
 
 var _propTypes = _interopRequireDefault(require("prop-types"));
 
-var _dateFns2 = _interopRequireDefault(require("@date-io/date-fns"));
+var _dateFns = _interopRequireDefault(require("@date-io/date-fns"));
 
 var _pickers = require("@material-ui/pickers");
+
+var _core = require("@material-ui/core");
 
 require("./DatePicker.css");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
 
 const DatePickerComponent = props => {
   const {
     selectedDate,
     handleDateChange
   } = props;
+  const theme = (0, _core.useTheme)();
+  (0, _react.useEffect)(() => {
+    console.log({
+      theme
+    });
+  }, [theme]);
   return _react.default.createElement("div", {
     className: "date-wrapper"
   }, _react.default.createElement(_pickers.MuiPickersUtilsProvider, {
-    utils: _dateFns2.default
+    utils: _dateFns.default
   }, _react.default.createElement(_pickers.DatePicker, {
     autoOk: true,
     className: "date-component",
@@ -91696,7 +83251,7 @@ DatePickerComponent.propTypes = {
   selectedDate: _propTypes.default.instanceOf(Date).isRequired,
   handleDateChange: _propTypes.default.func.isRequired
 };
-},{"date-fns":"../node_modules/date-fns/esm/index.js","react":"../node_modules/react/index.js","prop-types":"../node_modules/prop-types/index.js","@date-io/date-fns":"../node_modules/@date-io/date-fns/build/index.esm.js","@material-ui/pickers":"../node_modules/@material-ui/pickers/dist/material-ui-pickers.esm.js","./DatePicker.css":"../src/UI/DatePicker/DatePicker.css"}],"../src/UI/TextField/TextField.css":[function(require,module,exports) {
+},{"react":"../node_modules/react/index.js","prop-types":"../node_modules/prop-types/index.js","@date-io/date-fns":"../node_modules/@date-io/date-fns/build/index.esm.js","@material-ui/pickers":"../node_modules/@material-ui/pickers/dist/material-ui-pickers.esm.js","@material-ui/core":"../node_modules/@material-ui/core/esm/index.js","./DatePicker.css":"../src/UI/DatePicker/DatePicker.css"}],"../src/UI/TextField/TextField.css":[function(require,module,exports) {
 var reloadCSS = require('_css_loader');
 
 module.hot.dispose(reloadCSS);
@@ -96597,19 +88152,69 @@ function App() {
 
 var _default = App;
 exports.default = _default;
-},{"react":"../node_modules/react/index.js","./UI/TodoList":"../src/UI/TodoList.js","./App.css":"../src/App.css"}],"../src/index.js":[function(require,module,exports) {
+},{"react":"../node_modules/react/index.js","./UI/TodoList":"../src/UI/TodoList.js","./App.css":"../src/App.css"}],"../src/Theme/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _styles = require("@material-ui/core/styles");
+
+var _colors = require("@material-ui/core/colors");
+
+const muiTheme = (0, _styles.createMuiTheme)({
+  palette: {
+    primary: { ..._colors.deepPurple,
+      light: '#434a56',
+      main: '#22252b',
+      dark: '#999999'
+    },
+    secondary: _colors.green
+  },
+  status: {
+    danger: 'orange'
+  },
+  overrides: {
+    MuiDialog: {
+      paper: {
+        background: '#434a56'
+      }
+    },
+    MuiPickersCalendarHeader: {
+      iconButton: {
+        backgroundColor: '#383e47'
+      }
+    },
+    MuiButton: {
+      textPrimary: {
+        color: 'black'
+      }
+    }
+  }
+});
+var _default = muiTheme;
+exports.default = _default;
+},{"@material-ui/core/styles":"../node_modules/@material-ui/core/esm/styles/index.js","@material-ui/core/colors":"../node_modules/@material-ui/core/esm/colors/index.js"}],"../src/index.js":[function(require,module,exports) {
 "use strict";
 
 var _react = _interopRequireDefault(require("react"));
 
 var _reactDom = _interopRequireDefault(require("react-dom"));
 
+var _MuiThemeProvider = _interopRequireDefault(require("@material-ui/core/styles/MuiThemeProvider"));
+
 var _App = _interopRequireDefault(require("./App"));
+
+var _Theme = _interopRequireDefault(require("./Theme"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-_reactDom.default.render(_react.default.createElement(_App.default, null), document.getElementById('root'));
-},{"react":"../node_modules/react/index.js","react-dom":"../node_modules/react-dom/index.js","./App":"../src/App.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+_reactDom.default.render(_react.default.createElement(_MuiThemeProvider.default, {
+  theme: _Theme.default
+}, _react.default.createElement(_App.default, null)), document.getElementById('root'));
+},{"react":"../node_modules/react/index.js","react-dom":"../node_modules/react-dom/index.js","@material-ui/core/styles/MuiThemeProvider":"../node_modules/@material-ui/core/styles/MuiThemeProvider.js","./App":"../src/App.js","./Theme":"../src/Theme/index.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -96637,7 +88242,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "51757" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55661" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

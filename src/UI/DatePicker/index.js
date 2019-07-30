@@ -1,18 +1,22 @@
-import 'date-fns'
-import React from 'react'
+import React, { useEffect } from 'react'
 import PropTypes from 'prop-types'
-
 import DateFnsUtils from '@date-io/date-fns'
 import {
   MuiPickersUtilsProvider,
   TimePicker,
   DatePicker
 } from '@material-ui/pickers'
+import { makestyles, useTheme } from '@material-ui/core'
 
 import './DatePicker.css'
 
 export const DatePickerComponent = props => {
   const { selectedDate, handleDateChange } = props
+  const theme = useTheme()
+
+  useEffect(() => {
+    console.log({ theme })
+  }, [theme])
 
   return (
     <div className="date-wrapper">
